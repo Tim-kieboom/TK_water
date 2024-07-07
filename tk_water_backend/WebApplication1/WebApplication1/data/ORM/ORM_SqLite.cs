@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.Sqlite;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
@@ -8,6 +9,15 @@ namespace WebApplication1.data.ORM;
 
 public static class ORM_SqLite
 {
+    public static ORM_Iterable<T> Remove<T>(SqliteConnection connection) where T : ORM_Table, new()
+    {
+        string tableName = GetTableName(typeof(T));
+
+        ORM_Iterable<T> result = new(connection);
+        result.SqlCommand.Append($"DELETE FROM {tableName} ");
+        return result;
+    }
+
     public static async Task<bool> Insert<T>(T row, SqliteConnection connection) where T : ORM_Table, new()
     {
         PropertyInfo[] props = GetProperties(typeof(T));

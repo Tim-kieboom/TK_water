@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using WebApplication1.Controllers.addUnitData;
 using WebApplication1.Controllers.getAllUnitsData;
+using WebApplication1.Controllers.removeUnitData;
 using WebApplication1.data;
 using WebApplication1.data.ORM;
 
@@ -22,8 +23,16 @@ namespace WebApplication1.Controllers
         [HttpPost("postAllUnitsData")]
         public async Task<ActionResult> PostUnitDataAsync(PostAllUnitsDataRequestBody request)
         {
-            LinkedList<UnitData> unitsData = await ORM_SqLite.Select<UnitData>(connection)
-                                                             .GetResult();
+            LinkedList<UnitData> unitsData;
+            try
+            {
+                unitsData = await ORM_SqLite.Select<UnitData>(connection)
+                                            .GetResult();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
 
             return Ok(new PostAllUnitDataResponseBody()
             {
@@ -32,17 +41,36 @@ namespace WebApplication1.Controllers
         }
 
         [HttpPost("addUnitData")]
-        public async Task<ActionResult> AddUnitData(AddUnitDataResponseBody request)
+        public async Task<ActionResult> AddUnitData(AddUnitDataRequestBody request)
         {
-            long unitsCount = await ORM_SqLite.Count<UnitData>(connection)
-                                              .Where(p => p.UserID == request.UserID)
-                                              .GetAfflictedCount();
+            UnitData unit;
 
-            UnitData unit = new(request.UserID, unitsCount+1, request.UnitID, "unitName", 0, 0);
+            try 
+            { 
+                long unitsCount = await ORM_SqLite.Count<UnitData>(connection)
+                                                  .Where(unitData => unitData.UserID == request.UserID)
+                                                  .GetAfflictedCount();
 
+                unit = new(request.UserID, unitsCount+1, request.UnitID, "unitName", 0, 0);
+
+                await ORM_SqLite.Insert(unit, connection);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+
+            return Ok(unit);
+        }
+
+        [HttpPost("removeUnitData")]
+        public async Task<ActionResult> RemoveUnitData(RemoveUnitDataRequestBody request)
+        {
             try
             {
-                await ORM_SqLite.Insert(unit, connection);
+                await ORM_SqLite.Remove<UnitData>(connection)
+                            .Where(unitData => unitData.ModuleID == request.ModuleID && unitData.UserID == request.UserID)
+                            .GetAfflictedCount();
             }
             catch (Exception ex)
             {

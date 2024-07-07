@@ -36,16 +36,8 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
 
     public ORM_Iterable<T> Where(Expression<Func<T, bool>> lambda)
     {
-        var body = (BinaryExpression)lambda.Body;
-        var leftExpression = (MemberExpression)body.Left;
-        var rightExpression = body.Right;
-
-        string columnName = leftExpression.Member.Name;
-        string comparisonOperator = GetComparisonOperator(body.NodeType);
-        string comparisonValue = GetComparisonValue(rightExpression)?.ToString() ?? "";
-
-        SqlCommand.Append($"WHERE {columnName} {comparisonOperator}");
-        SqlCommand.AddParameter(comparisonValue);
+        SqlCommand.Append("WHERE ");
+        BuildWhereClause(lambda.Body);
         return this;
     }
 
@@ -97,6 +89,50 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
         return list;
     }
 
+    private void BuildWhereClause(Expression expression)
+    {
+
+        if (expression is not BinaryExpression body)
+            throw new ArgumentException();
+
+        if (body.Left is MemberExpression leftMember)
+        {
+            string columnName = leftMember.Member.Name;
+            SqlCommand.Append(columnName);
+        }
+        else if (body.Left is BinaryExpression leftCompare)
+        {
+            BuildWhereClause(leftCompare);
+        }
+        else
+        {
+            throw new ArgumentException();
+        }
+
+        string comparisonOperator = GetComparisonOperator(expression.NodeType);
+        SqlCommand.Append($" {comparisonOperator} ");
+
+        if (body.Right is MemberExpression rightMember)
+        {
+            string value = GetComparisonValue(rightMember)?.ToString() ?? "";
+            SqlCommand.AddParameter(value);
+        }
+        else if (body.Right is ConstantExpression rightConst)
+        {
+            string value = rightConst?.Value?.ToString() ?? "";
+            SqlCommand.AddParameter(value);
+        }
+        else if (body.Right is BinaryExpression rightCompare)
+        {
+            BuildWhereClause(rightCompare);
+        }
+        else
+        {
+            throw new ArgumentException();
+        }
+
+    }
+
     private static string GetComparisonOperator(ExpressionType nodeType)
     {
         switch (nodeType)
@@ -113,6 +149,10 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
                 return ">";
             case ExpressionType.GreaterThanOrEqual:
                 return ">=";
+            case ExpressionType.AndAlso:
+                return "AND";
+            case ExpressionType.OrElse:
+                return "OR";
             default:
                 throw new NotSupportedException($"Comparison operator for {nodeType} is not supported.");
         }
