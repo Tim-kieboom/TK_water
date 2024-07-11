@@ -1,0 +1,80 @@
+$font-family: 'Roboto', sans-serif;
+$primary-color: #38a169;
+$secondary-color: #e2e8f0;
+
+$error-color: #e53e3e;
+
+$text-color: #1a202c;
+$text-color-light: #F5F5F5;
+$background-color: #f7fafc;
+$border-color: #cbd5e0;
+$footer-bg-color: #5b6c89;
+
+body
+{
+  font-family: $font-family;
+  background-color: $background-color;
+  color: $text-color;
+}
+
+h1
+{
+    text-align: center;
+}
+
+div
+{
+    display: flex; 
+    justify-content: center; 
+}
+
+button
+{
+  background-color: $primary-color;
+  border-color: $primary-color;
+  color: $text-color-light;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+
+  &:hover
+  {
+    background-color: darken($primary-color, 10%);
+  }
+
+  &:focus
+  {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($primary-color, 0.5);
+  }
+}
+
+.grayButton
+{
+  background-color: #969798;
+  border-color: #969798;
+  color: $text-color-light;
+  &:hover
+  {
+    background-color: darken(#969798, 10%);
+  }
+
+  &:focus
+  {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(#969798, 0.5);
+  }
+}
+
+input
+{
+    box-sizing: border-box;
+    size: 80;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    margin: 8px 0;
+}
+
+
+
+
+

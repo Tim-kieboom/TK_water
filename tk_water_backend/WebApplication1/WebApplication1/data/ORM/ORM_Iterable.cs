@@ -77,6 +77,14 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
 
         return Convert.ToInt64(affectedRows ?? 0);
     }
+    public async Task Execute()
+    {
+        using (Connection)
+        {
+            await Connection.OpenAsync();
+            await SqlCommand.ExecuteNonQueryAsync();
+        }
+    }
 
     public async Task<LinkedList<T>> GetResultAndPrint()
     {
@@ -88,6 +96,8 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
 
         return list;
     }
+
+
 
     private void BuildWhereClause(Expression expression)
     {

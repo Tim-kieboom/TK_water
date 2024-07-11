@@ -27,6 +27,7 @@ namespace WebApplication1.Controllers
             try
             {
                 unitsData = await ORM_SqLite.Select<UnitData>(connection)
+                                            .Where(unitData => unitData.UserID == request.UserID)
                                             .GetResult();
             }
             catch (Exception ex)
@@ -69,8 +70,8 @@ namespace WebApplication1.Controllers
             try
             {
                 await ORM_SqLite.Remove<UnitData>(connection)
-                            .Where(unitData => unitData.ModuleID == request.ModuleID && unitData.UserID == request.UserID)
-                            .GetAfflictedCount();
+                                .Where(unitData => unitData.ModuleID == request.ModuleID && unitData.UserID == request.UserID)
+                                .Execute();
             }
             catch (Exception ex)
             {

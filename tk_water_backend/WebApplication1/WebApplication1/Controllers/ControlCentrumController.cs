@@ -22,8 +22,17 @@ namespace WebApplication1.Controllers
         [HttpPost("postUnitMeasurement")]
         public async Task<ActionResult> PostUnitMeasurement(PostAllUnitsDataRequestBody request)
         {
-            LinkedList<UnitData> unitsData = await ORM_SqLite.Select<UnitData>(connection)
-                                                             .GetResult();
+            LinkedList<UnitData> unitsData;
+            try
+            {
+                unitsData = await ORM_SqLite.Select<UnitData>(connection)
+                                            .Where(unitData => unitData.UserID == request.UserID)
+                                            .GetResult();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
 
             return Ok(new PostAllUnitDataResponseBody()
             {
@@ -34,20 +43,6 @@ namespace WebApplication1.Controllers
         [HttpPost("addUnitData")]
         public async Task<ActionResult> AddUnitData(AddUnitDataResponseBody request)
         {
-            //long unitsCount = await ORM_SqLite.Count<UnitData>(connection)
-            //                                  .WhereIsEqual(request.UserID)
-            //                                  .GetAfflictedCount();
-
-            //UnitData unit = new(request.UserID, unitsCount + 1, request.UnitID, "unitName", 0, 0);
-
-            //try
-            //{
-            //    await ORM_SqLite.Insert(unit, connection);
-            //}
-            //catch (Exception ex)
-            //{
-            //    return BadRequest(ex.Message);
-            //}
             Console.WriteLine("!not implemented!");
             return Ok();
         }
