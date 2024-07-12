@@ -59,18 +59,14 @@ public static class ORM_SqLite
         return (rowsInserted == 1);
     }
 
-    public static ORM_Iterable<T> Update<T>(T row, string idName, SqliteConnection connection) where T : ORM_Table, new()
+    public static ORM_Iterable<T> Update<T>(T row, SqliteConnection connection) where T : ORM_Table, new()
     {
         string tableName = GetTableName(typeof(T));
         PropertyInfo[] props = GetProperties(typeof(T));
         StringBuilder Values = new();
-        string idValue = "";
 
         foreach ((PropertyInfo prop, int index) in props.Select((value, index) => (value, index)))
         {
-            if(prop.Name == NameToPropertyName(idName)) 
-                idValue = prop.GetValue(prop)?.ToString() ?? "";
-
             Values.Append(PropertyToName(prop) + "=");
             string value = prop.GetValue(row)?.ToString() ?? "null";
             if (prop.PropertyType == typeof(string))
@@ -87,8 +83,9 @@ public static class ORM_SqLite
                 Values.Append(", ");
         }
 
-
+        string updateString = $"UPDATE {tableName} \nSET {Values}\n";
         ORM_Iterable<T> result = new(connection);
+        result.SqlCommand.Append(updateString);
 
         return result;
     }

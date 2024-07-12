@@ -1,6 +1,6 @@
 ﻿namespace WebApplication1.Controllers.getAllUnitsData
 {
-    public class PostAllUnitsDataRequestBody
+    public class ReceiveAllUnitsDataRequestBody
     {
         public long UserID { get; set; }
     }

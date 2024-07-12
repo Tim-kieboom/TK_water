@@ -20,8 +20,8 @@ namespace WebApplication1.Controllers
             _logger = logger;
         }
 
-        [HttpPost("postAllUnitsData")]
-        public async Task<ActionResult> PostUnitDataAsync(PostAllUnitsDataRequestBody request)
+        [HttpPost("receiveAllUnitsData")]
+        public async Task<ActionResult> ReceiveUnitDataAsync(ReceiveAllUnitsDataRequestBody request)
         {
             LinkedList<UnitData> unitsData;
             try
@@ -30,12 +30,12 @@ namespace WebApplication1.Controllers
                                             .Where(unitData => unitData.UserID == request.UserID)
                                             .GetResult();
             }
-            catch (Exception ex)
+            catch (SqliteException ex)
             {
                 return BadRequest(ex.Message);
             }
 
-            return Ok(new PostAllUnitDataResponseBody()
+            return Ok(new ReceiveAllUnitDataResponseBody()
             {
                 UnitsData = unitsData
             });
@@ -44,7 +44,7 @@ namespace WebApplication1.Controllers
         [HttpPost("addUnitData")]
         public async Task<ActionResult> AddUnitData(AddUnitDataRequestBody request)
         {
-            UnitData unit;
+            UnitData addUnit;
 
             try 
             { 
@@ -52,16 +52,23 @@ namespace WebApplication1.Controllers
                                                   .Where(unitData => unitData.UserID == request.UserID)
                                                   .GetAfflictedCount();
 
-                unit = new(request.UserID, unitsCount+1, request.UnitID, "unitName", 0, 0);
+                addUnit = await ORM_SqLite.Select<UnitData>(connection)
+                                                    .Where(unitData => unitData.UnitID == request.UnitID)
+                                                    .GetResult()
+                                                    .AsyncFirst();
 
-                await ORM_SqLite.Insert(unit, connection);
+                addUnit.UserID = request.UserID;
+
+                await ORM_SqLite.Update(addUnit, connection)
+                                .Where(unitData => unitData.UnitID == request.UnitID)
+                                .Execute();
             }
-            catch (Exception ex)
+            catch (SqliteException ex)
             {
                 return BadRequest(ex.Message);
             }
 
-            return Ok(unit);
+            return Ok(addUnit);
         }
 
         [HttpPost("removeUnitData")]
@@ -73,12 +80,29 @@ namespace WebApplication1.Controllers
                                 .Where(unitData => unitData.ModuleID == request.ModuleID && unitData.UserID == request.UserID)
                                 .Execute();
             }
-            catch (Exception ex)
+            catch (SqliteException ex)
             {
                 return BadRequest(ex.Message);
             }
 
             return Ok();
         }
+
+        [HttpGet("getAvailableUnits")]
+        public async Task<ActionResult> GetAvailableUnits()
+        {
+            LinkedList<UnitData> unitsData;
+            try
+            {
+                unitsData = await ORM_SqLite.Select<UnitData>(connection)
+                                            .Where(unitData => unitData.UserID == 0)
+                                            .GetResult();
+            }
+            catch (SqliteException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+
+            return Ok(unitsData);
     }
 }

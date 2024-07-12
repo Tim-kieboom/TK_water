@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
-using WebApplication1.Controllers.addUnitData;
-using WebApplication1.Controllers.getAllUnitsData;
 using WebApplication1.data.ORM;
 using WebApplication1.data;
+using WebApplication1.Controllers.postUnitMeasurement;
+using WebApplication1.Controllers.registerUnit;
 
 namespace WebApplication1.Controllers
 {
@@ -20,30 +20,61 @@ namespace WebApplication1.Controllers
         }
 
         [HttpPost("postUnitMeasurement")]
-        public async Task<ActionResult> PostUnitMeasurement(PostAllUnitsDataRequestBody request)
+        public async Task<ActionResult> PostUnitMeasurement(PostUnitMeasurementRequestBody request)
         {
-            LinkedList<UnitData> unitsData;
+            UnitData unitData;
             try
             {
-                unitsData = await ORM_SqLite.Select<UnitData>(connection)
-                                            .Where(unitData => unitData.UserID == request.UserID)
-                                            .GetResult();
+                 unitData = await ORM_SqLite.Select<UnitData>(connection)
+                                            .Where(unitData => unitData.UnitID == request.UnitID)
+                                            .GetResult()
+                                            .AsyncFirst();
+
+                unitData.MoistureLevel = request.MoistureLevel;
+                await ORM_SqLite.Insert(unitData, connection);
             }
-            catch (Exception ex)
+            catch (SqliteException ex)
             {
                 return BadRequest(ex.Message);
             }
 
-            return Ok(new PostAllUnitDataResponseBody()
+            return Ok(new PostUnitMeasurementResponseBody()
             {
-                UnitsData = unitsData
+                UnitsData = unitData
             });
         }
 
-        [HttpPost("addUnitData")]
-        public async Task<ActionResult> AddUnitData(AddUnitDataResponseBody request)
+        //called when unit connects to server
+        [HttpPost("registerUnit")]
+        public async Task<ActionResult> RegisterUnit(RegisterUnitRequestBody request)
         {
-            Console.WriteLine("!not implemented!");
+            long count = await ORM_SqLite.Select<UnitData>(connection)
+                                         .Where(unitData => unitData.UnitID == request.UnitID)
+                                         .GetAfflictedCount();
+
+            if (count > 0)
+                return Ok();
+
+            UnitData newUnit = new()
+            {
+                UnitID = request.UnitID,
+                UnitName = "unitName",
+                ModuleID = 0,
+                UserID = 0,
+                MoistureLevel = request.MoistureLevel,
+                MoistureThreshold = request.MoistureThreshold
+            };
+
+            try
+            {
+                await ORM_SqLite.Insert(newUnit, connection);
+            }
+            catch (SqliteException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+
+
             return Ok();
         }
     }

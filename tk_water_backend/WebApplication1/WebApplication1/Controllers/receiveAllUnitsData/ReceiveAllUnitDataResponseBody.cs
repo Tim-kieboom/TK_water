@@ -2,7 +2,7 @@
 
 namespace WebApplication1.Controllers.getAllUnitsData
 {
-    public class PostAllUnitDataResponseBody
+    public class ReceiveAllUnitDataResponseBody
     {
         public LinkedList<UnitData> UnitsData { get; set; } = new();
     }

@@ -1,6 +1,9 @@
 using Microsoft.Data.Sqlite;
 using WebApplication1.data;
 using WebApplication1.data.ORM;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 

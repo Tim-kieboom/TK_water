@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
@@ -21,6 +22,12 @@ public static class Extensions
         cmd.Parameters.AddWithValue(parameterName, value);
     }
 
+    public static async Task<T> AsyncFirst<T>(this Task<LinkedList<T>> listTask)
+    {
+        LinkedList<T> list = await listTask;
+        return list.First();
+    }
+
 }
 
 public class ORM_Iterable<T> where T : ORM_Table, new()
@@ -36,8 +43,13 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
 
     public ORM_Iterable<T> Where(Expression<Func<T, bool>> lambda)
     {
-        SqlCommand.Append("WHERE ");
+        if(SqlCommand.CommandText.Contains("WHERE"))
+            SqlCommand.Append("AND ");
+        else
+            SqlCommand.Append("WHERE ");
+
         BuildWhereClause(lambda.Body);
+        SqlCommand.Append("\n");
         return this;
     }
 
