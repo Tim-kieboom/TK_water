@@ -4,19 +4,14 @@
 #include <SPIFFS.h>
 #include <WiFi.h>
 #include <EEPROM.h>
+#include "../networkEEPROM_data/eepromData.h"
+#include <StringTools.h>
+#include <functional>
 
 static AsyncWebServer server(80);
 static IPAddress IP;
 
-size_t hash(const char* str, size_t len, size_t index = 0, size_t hashNumber = 5381)
-{
-    return (index < len) ? hash(str, len, index + 1, ((hashNumber << 5) + hashNumber) + str[index]) : hashNumber;
-}
 
-size_t hash(String str)
-{
-    return hash(str.c_str(), str.length());
-}
 
 void handleConnect(AsyncWebServerRequest *request)
 {
@@ -46,11 +41,7 @@ void handleConnect(AsyncWebServerRequest *request)
     WiFi.disconnect();
     WiFi.mode(WIFI_STA);
 
-    EEPROM.write(boolHasWifi_address, 1);
-    EEPROM.writeString(ssid_address, username);
-    EEPROM.writeString(password_address, password);
-    EEPROM.commit();
-
+    setWifiData_toEEPROM(username, password);
 }
 
 void serverController()

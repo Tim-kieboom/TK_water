@@ -60,7 +60,10 @@
     "cSpell.words": [
         "APIP",
         "CHECKOVERFLOW",
+        "EEPROMDATA",
         "INITSERVER",
+        "STRINGTOOLS",
+        "UNITCLIENT",
         "WATERPUMP"
     ]
 }

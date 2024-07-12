@@ -1,44 +1,47 @@
 #include "UnitClient.h"
 #include <HTTPClient.h>
+#include <StringTools.h>
 #include "../Secret.h"
 
 static WiFiClientSecure client;
+static const char* serverURL = "";
+static uint16_t port = 443;
 
-void connectToServer(const char* serverURL, uint16_t port)
+bool connectToServer(const char* _serverURL, uint16_t _port)
 {
   client.setCACert(certificate);
-  client.connect(serverURL, port);
+  int responseCode = client.connect(_serverURL, _port);
 
   if(!client.connected())
-    Serial.println("client not connected");
+  {
+    Serial.printf("client not connected: %d\n", responseCode);
+    return false;
+  }
+  client.stop();
+
+  serverURL = _serverURL;
+  port = _port;
+  return true;
 }
 
-String httpGETRequest(const char* serverName) 
+String httpPostRequest(const char* path, const char* payload) 
 {
+  HTTPClient https;
+  https.setTimeout(2000);
+  https.begin(client, String(serverURL)+'/'+path);
 
+  https.addHeader("Content-Type", "application/json");
+  int httpResponseCode = https.POST(payload);
 
-  // WiFiClient client;
-  // HTTPClient http;
-    
-  // // Your Domain name with URL path or IP address with path
-  // http.begin(client, serverName);
-  
-  // // Send HTTP POST request
-  // int httpResponseCode = http.GET();
-  
-  // String payload = "--"; 
-  
-  // if (httpResponseCode>0) {
-  //   Serial.print("HTTP Response code: ");
-  //   Serial.println(httpResponseCode);
-  //   payload = http.getString();
-  // }
-  // else {
-  //   Serial.print("Error code: ");
-  //   Serial.println(httpResponseCode);
-  // }
-  // // Free resources
-  // http.end();
+  if(httpResponseCode < 0)
+  {
+    Serial.print("Error on sending POST: ");
+    Serial.println(httpResponseCode);
+    return "";
+  }
 
-  // return payload;
+  String response = https.getString();
+  Serial.println("response: " + String(response));
+  https.end();
+  return response;
 }

@@ -1,9 +1,14 @@
-#include <Arduino.h>
+#include "network/networkEEPROM_data/eepromData.h"
 #include "moistureSensor/moistureSensor.h"
 #include "network/initServer/initServer.h"
 #include "waterPump/WaterPump.h"
+#include "network/UnitClient.h"
+#include "network/wifi/wifi.h"
+#include <StringTools.h>
+#include <Arduino.h>
 #include <EEPROM.h>
 #include <WiFi.h>
+#include <functional>
 
 #define MOISTURE_SENSOR_1 A0
 #define WATER_PUMP_1 2
@@ -13,86 +18,11 @@ static const uint8_t wateringThreshold_address = 1;
 static const char* serverURL = "https://localhost";
 static const uint16_t serverPort = 7299;
 
-enum WifiState
-{
-  notFound,
-  notConnected,
-  connected
-};
+static uint8_t wateringThreshold = 70;
+static uint8_t moistureLevel = 0;
 
-bool getWifiData_fromEEPROM(/*out*/String &ssid, /*out*/String &password)
-{
-  Serial.println(EEPROM.read(boolHasWifi_address));
-  if(EEPROM.read(boolHasWifi_address) != 1)
-    return false;
-
-  ssid = EEPROM.readString(ssid_address);
-  password = EEPROM.readString(password_address);
-
-  return true;
-}
-
-bool connectToWifi(const char* ssid, const char* password, /*out*/WifiState &wifiState)
-{
-  static Timer* timer = nullptr;
-  if(timer == nullptr)
-  {
-    timer = new Timer(millieSeconds);
-    WiFi.begin(ssid, password);
-  }
-
-  static uint8_t timeout = 0;
-  if(timer->waitTime(500))
-  {
-    Serial.printf("connect attempt %d\n", timeout);
-
-    if(++timeout >= 10)
-    {
-      timeout = 0;
-      wifiState = notConnected;
-      delete timer;
-      return true;
-    }
-  }
-
-  if(WiFi.status() != WL_CONNECTED)
-    return false;
-
-  timeout = 0;
-  delete timer;
-  wifiState = connected;
-  return true;
-}
-
-WifiState wifiState = notFound;
-
-void wifiInit()
-{
-  String ssid = "";
-  String password = "";
-  if(!getWifiData_fromEEPROM(/*out*/ssid, /*out*/password))
-    wifiState = notFound;
-  else
-    while(!connectToWifi(ssid.c_str(), password.c_str(), /*out*/wifiState));
-
-  switch(wifiState)
-  {
-    case notFound:
-      Serial.println("Wifi not found");
-      break;
-
-    case notConnected:
-      Serial.println("Wifi not connected");
-      break;
-
-    case connected:
-      Serial.println("Wifi connected");
-      break;
-
-    default:
-      break;
-  }
-}
+static WifiState wifiState = notFound;
+static const String wifiUnitID = String(hash(WiFi.macAddress().c_str()));
 
 bool setupInitServer()
 {
@@ -125,7 +55,6 @@ bool setupInitServer()
   return false;
 }
 
-uint8_t wateringThreshold = 70;
 void setup() 
 {
   Serial.begin(115200);
@@ -159,10 +88,15 @@ void loop()
 
   if(dataTimer.waitTime(700))
   {
-    if(waterSensor.getAverageReading() < wateringThreshold)
+    moistureLevel = waterSensor.getAverageReading();
+    if(moistureLevel < wateringThreshold)
       pumpWater = true;
 
-    //TODO: send data to server
+    httpPostRequest
+    (
+      "postUnitMeasurement", 
+      ("{\"unitID\": \""+wifiUnitID+"\", \"moistureLevel\": "+String(moistureLevel)+"}").c_str()
+    );
   }
 
   if(pumpWater)
@@ -170,7 +104,4 @@ void loop()
     if(waterPump.turnOnFor(200, millieSeconds))
       pumpWater = false;
   }
-
-
-
 }
