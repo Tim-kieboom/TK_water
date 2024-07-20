@@ -1,30 +1,34 @@
-#include "network/networkEEPROM_data/eepromData.h"
 #include "moistureSensor/moistureSensor.h"
-#include "network/initServer/initServer.h"
+#include "initServer/initServer.h"
 #include "waterPump/WaterPump.h"
-#include "network/UnitClient.h"
-#include "network/wifi/wifi.h"
+#include <TK_httpsClient.h>
 #include <StringTools.h>
 #include <Arduino.h>
+#include <RGB_Led.h>
 #include <EEPROM.h>
+#include "Secret.h"
 #include <WiFi.h>
-#include <functional>
 
-#define MOISTURE_SENSOR_1 A0
-#define WATER_PUMP_1 2
+#define MOISTURE_SENSOR_1 A4
+#define WATER_PUMP_1 32
 #define BUTTON_OPEN_INIT_SERVER 15
 
-static const uint8_t wateringThreshold_address = 1;
-static const char* serverURL = "https://localhost";
-static const uint16_t serverPort = 7299;
+#define LED_1_R 33
+#define LED_1_G 27
+#define LED_1_B 12
+
+static const uint8_t wateringThreshold_address = 97;
 
 static uint8_t wateringThreshold = 70;
-static uint8_t moistureLevel = 0;
 
 static WifiState wifiState = notFound;
 static const String wifiUnitID = String(hash(WiFi.macAddress().c_str()));
 
-bool setupInitServer()
+static RGB_Led led = RGB_Led(LED_1_R, LED_1_G, LED_1_B);
+
+static httpsRequest_config* httpConfig = new httpsRequest_config("https://192.168.3.79:7299");	
+
+void setupInitServer()
 {
   static bool startOfFunction = true;
 
@@ -34,25 +38,85 @@ bool setupInitServer()
       WiFi.disconnect();
 
     startServer();
+    clearWifiData_fromEEPROM();
+    wifiState = hotspot;
   }
 
   startOfFunction = false;
 
   String ssid = "";
   String password = "";
-  if(!getWifiData_fromEEPROM(/*out*/ssid, /*out*/password))
-  {
-    wifiState = notFound;
-    return false;
-  }
+  if(getWifiData_fromEEPROM(/*out*/ssid, /*out*/password))
+    ESP.restart();
+  
+  return;
+}
 
-  if(connectToWifi(ssid.c_str(), password.c_str(), /*out*/wifiState))
+void setLedToState()
+{
+  switch(wifiState)
   {
-    startOfFunction = true;
-    return true;
-  }
+    case notFound:
+      led.turn(RGB_LedColor::red);
+      return;
 
-  return false;
+    case serverNotFound:
+      led.turn(RGB_LedColor::cyan);
+      break;
+
+    case notConnected:  
+      led.turn(RGB_LedColor::yellow);
+      return;
+
+    case connecting:
+      led.turn(RGB_LedColor::white);
+      return;
+
+    case connected:
+      led.turn(RGB_LedColor::green);
+      return;
+
+    case hotspot:
+      led.turn(RGB_LedColor::magenta);
+      return;
+
+    default:
+      led.turn(RGB_LedColor::off);
+      return;
+  }
+}
+
+bool signIn()
+{
+  const char* response = httpsPost
+  (
+    "controlCentrum/signIn", 
+    "{\"unitID\": \""+ String(wifiUnitID) +"\"}", 
+    httpConfig, 
+    /*out*/wifiState
+  );
+
+  Serial.println("[post(test)] response: " + String(response));
+  TRY_DELETE_RESPONSE(response);
+
+  return (wifiState == connected);
+}
+
+void sendData(uint8_t moistureLevel)
+{
+  String moistureLevel_str = String(moistureLevel);
+  
+  const char* response = httpsPost
+  (
+    "controlCentrum/postUnitMeasurement", 
+    "{\"unitID\": \""+ wifiUnitID +"\", \"moistureLevel\": "+ moistureLevel_str +"}", 
+    httpConfig, 
+    /*out*/wifiState
+  );
+
+  Serial.println("[post(postUnitMeasurement)] response: " + String(response) + "\n");
+  
+  TRY_DELETE_RESPONSE(response);
 }
 
 void setup() 
@@ -60,11 +124,18 @@ void setup()
   Serial.begin(115200);
   EEPROM.begin(512);
 
+  pinMode(BUTTON_OPEN_INIT_SERVER, INPUT_PULLUP);
+
   uint8_t threshold = EEPROM.read(wateringThreshold_address);
   if(threshold != 255)
     wateringThreshold = threshold;
 
-  wifiInit();
+  setLedToState();
+
+  wifiState = wifiInit_EEPROM();
+
+  if(signIn())
+    Serial.println("Connected to wifi");
 }
 
 void loop() 
@@ -73,30 +144,24 @@ void loop()
 
   static bool pumpWater = false;
   static bool initServer = false;
-  static bool connectedToWifi = true;
+
   static MoistureSensor waterSensor = MoistureSensor(MOISTURE_SENSOR_1);
   static WaterPump waterPump = WaterPump(WATER_PUMP_1);
 
-  if(digitalRead(BUTTON_OPEN_INIT_SERVER) == HIGH)
+  if(digitalRead(BUTTON_OPEN_INIT_SERVER) == LOW)
     initServer = true;
-    
-  if(initServer)
-  {
-    if(setupInitServer())
-      initServer = false;
-  }
 
-  if(dataTimer.waitTime(700))
+  if(initServer)
+    setupInitServer();
+
+  if(dataTimer.waitTime(2000))
   {
-    moistureLevel = waterSensor.getAverageReading();
-    if(moistureLevel < wateringThreshold)
+    uint8_t moistureLevel = waterSensor.getAverageReading();
+    if(moistureLevel > wateringThreshold)
       pumpWater = true;
 
-    httpPostRequest
-    (
-      "postUnitMeasurement", 
-      ("{\"unitID\": \""+wifiUnitID+"\", \"moistureLevel\": "+String(moistureLevel)+"}").c_str()
-    );
+    if(hasWifi(wifiState))
+      sendData(moistureLevel);
   }
 
   if(pumpWater)
@@ -104,4 +169,6 @@ void loop()
     if(waterPump.turnOnFor(200, millieSeconds))
       pumpWater = false;
   }
+
+  setLedToState();
 }

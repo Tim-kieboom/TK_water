@@ -9,11 +9,32 @@
 <body>
     <h1>Connect unit to Wifi</h1>
     <div>
-        <form action="connect" method="post">
-            <input type="text" name="username" placeholder="username"><br>
-            <input type="text" name="password" placeholder="password"><br>
-            <button type="submit">connect</button>
-        </form>
+        <input id="user" type="text" name="username" placeholder="username"><br>
+        <input id="psw" type="text" name="password" placeholder="password"><br>
+        <button onclick="sendMessage()">connect</button>
     </div>
+
+    <script>
+        async function sendMessage() 
+        {
+            var user = document.getElementById("user").value;
+            var psw = document.getElementById("psw").value;
+        
+            const response = await fetch
+            (
+                "/connect",
+                {
+                    method: "POST",
+                    headers: 
+                    {
+                        "Content-Type": "application/json"
+                    },
+                    body: (user + "\n" + psw)
+                }
+                
+            )
+            .catch(error => console.error(error));
+        }
+    </script>
 </body>
 </html>

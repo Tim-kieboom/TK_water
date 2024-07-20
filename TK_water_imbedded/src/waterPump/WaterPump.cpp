@@ -6,6 +6,7 @@ WaterPump::WaterPump(uint8_t pin)
     pinMode(pin, OUTPUT);
 }
 
+
 bool WaterPump::turnOnFor(uint16_t time, TimerType timeType)
 {
     static Timer* timer;
@@ -17,6 +18,8 @@ bool WaterPump::turnOnFor(uint16_t time, TimerType timeType)
     if(timer->waitTime(time))
     {
         turnOff();
+        
+        timer = nullptr;
         delete timer;
         return true;
     }

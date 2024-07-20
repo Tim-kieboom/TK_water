@@ -30,21 +30,6 @@ button:focus {
   box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.5);
 }
 
-.grayButton {
-  background-color: #969798;
-  border-color: #969798;
-  color: #F5F5F5;
-}
-
-.grayButton:hover {
-  background-color: #7c7e7f;
-}
-
-.grayButton:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(150, 151, 152, 0.5);
-}
-
 input {
   box-sizing: border-box;
   size: 80;

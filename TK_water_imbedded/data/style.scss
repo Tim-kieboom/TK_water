@@ -19,13 +19,13 @@ body
 
 h1
 {
-    text-align: center;
+  text-align: center;
 }
 
 div
 {
-    display: flex; 
-    justify-content: center; 
+  display: flex; 
+  justify-content: center; 
 }
 
 button
@@ -48,30 +48,13 @@ button
   }
 }
 
-.grayButton
-{
-  background-color: #969798;
-  border-color: #969798;
-  color: $text-color-light;
-  &:hover
-  {
-    background-color: darken(#969798, 10%);
-  }
-
-  &:focus
-  {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(#969798, 0.5);
-  }
-}
-
 input
 {
-    box-sizing: border-box;
-    size: 80;
-    border: 2px solid #ccc;
-    border-radius: 4px;
-    margin: 8px 0;
+  box-sizing: border-box;
+  size: 80;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  margin: 8px 0;
 }
 
 
