@@ -22,10 +22,10 @@ public static class Extensions
         cmd.Parameters.AddWithValue(parameterName, value);
     }
 
-    public static async Task<T> AsyncFirst<T>(this Task<LinkedList<T>> listTask)
+    public static async Task<T?> AsyncFirstOrDefault<T>(this Task<LinkedList<T>> listTask)
     {
         LinkedList<T> list = await listTask;
-        return list.First();
+        return list.FirstOrDefault();
     }
 
 }

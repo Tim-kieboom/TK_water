@@ -1,4 +1,4 @@
-﻿namespace WebApplication1.Controllers.getAllUnitsData
+﻿namespace WebApplication1.Controllers.backendBodys.receiveAllUnitsData
 {
     public class ReceiveAllUnitsDataRequestBody
     {

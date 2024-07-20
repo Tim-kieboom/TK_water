@@ -1,4 +1,4 @@
-﻿namespace WebApplication1.Controllers.postUnitMeasurement
+﻿namespace WebApplication1.Controllers.controlCentrumBodys.postUnitMeasurement
 {
     public class PostUnitMeasurementRequestBody
     {

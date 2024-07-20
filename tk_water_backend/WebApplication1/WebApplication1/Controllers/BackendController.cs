@@ -44,7 +44,7 @@ namespace WebApplication1.Controllers
         [HttpPost("addUnitData")]
         public async Task<ActionResult> AddUnitData(AddUnitDataRequestBody request)
         {
-            UnitData addUnit;
+            UnitData? addUnit;
 
             try 
             { 
@@ -55,7 +55,10 @@ namespace WebApplication1.Controllers
                 addUnit = await ORM_SqLite.Select<UnitData>(connection)
                                                     .Where(unitData => unitData.UnitID == request.UnitID)
                                                     .GetResult()
-                                                    .AsyncFirst();
+                                                    .AsyncFirstOrDefault();
+
+                if(addUnit == null)
+                    return NotFound($"no data with unitID: {request.UnitID} found");
 
                 addUnit.UserID = request.UserID;
 
@@ -104,5 +107,6 @@ namespace WebApplication1.Controllers
             }
 
             return Ok(unitsData);
+        }
     }
 }

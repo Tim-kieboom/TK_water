@@ -1,4 +1,4 @@
-﻿namespace WebApplication1.Controllers.removeUnitData
+﻿namespace WebApplication1.Controllers.backendBodys.removeUnitData
 {
     public class RemoveUnitDataRequestBody
     {

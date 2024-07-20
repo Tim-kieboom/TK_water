@@ -1,6 +1,6 @@
 ﻿using WebApplication1.data;
 
-namespace WebApplication1.Controllers.registerUnit
+namespace WebApplication1.Controllers.controlCentrumBodys.registerUnit
 {
     public class RegisterUnitRequestBody
     {

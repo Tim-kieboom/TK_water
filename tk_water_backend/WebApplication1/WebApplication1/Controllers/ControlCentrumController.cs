@@ -3,7 +3,9 @@ using Microsoft.Data.Sqlite;
 using WebApplication1.data.ORM;
 using WebApplication1.data;
 using WebApplication1.Controllers.postUnitMeasurement;
-using WebApplication1.Controllers.registerUnit;
+using WebApplication1.Controllers.controlCentrumBodys.registerUnit;
+using WebApplication1.Controllers.controlCentrumBodys.postUnitMeasurement;
+using WebApplication1.Controllers.controlCentrumBodys.signIn;
 
 namespace WebApplication1.Controllers
 {
@@ -19,16 +21,45 @@ namespace WebApplication1.Controllers
             _logger = logger;
         }
 
+        [HttpPost("signIn")]
+        public async ActionResult signIn(SignInRequestBody request)
+        {
+            try
+            {
+                long unitCount = await ORM_SqLite.Select<UnitData>(connection)
+                                                 .Where(unit => unit.UnitID == request.UnitID)
+                                                 .GetAfflictedCount();
+
+                if (unitCount > 0)
+                    return Ok("success");
+
+                UnitData unit = new(0, 0, request.UnitID, "", 70, 0);
+                await ORM_SqLite.Insert(unit, connection);
+            }
+            catch(Exception ex) 
+            {
+                Console.WriteLine(ex.Message); 
+            }
+
+            return Ok("unit has been added to data");
+        }
+
         [HttpPost("postUnitMeasurement")]
         public async Task<ActionResult> PostUnitMeasurement(PostUnitMeasurementRequestBody request)
         {
-            UnitData unitData;
+            UnitData? unitData;
             try
             {
                  unitData = await ORM_SqLite.Select<UnitData>(connection)
                                             .Where(unitData => unitData.UnitID == request.UnitID)
                                             .GetResult()
-                                            .AsyncFirst();
+                                            .AsyncFirstOrDefault();
+
+                if(unitData == null)
+                    return NotFound("unitID not found in dataBase");
+
+                if(request.MoistureLevel == unitData.MoistureLevel)
+                    return Ok(new PostUnitMeasurementResponseBody() { UnitsData = unitData });
 
                 unitData.MoistureLevel = request.MoistureLevel;
                 await ORM_SqLite.Insert(unitData, connection);
