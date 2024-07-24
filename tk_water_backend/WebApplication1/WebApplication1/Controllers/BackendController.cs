@@ -1,8 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
-using WebApplication1.Controllers.addUnitData;
-using WebApplication1.Controllers.getAllUnitsData;
-using WebApplication1.Controllers.removeUnitData;
+using Microsoft.EntityFrameworkCore.Update.Internal;
+using WebApplication1.Controllers.backendBodys.addUnitData;
+using WebApplication1.Controllers.backendBodys.getAvailableUnits;
+using WebApplication1.Controllers.backendBodys.receiveAllUnitsData;
+using WebApplication1.Controllers.backendBodys.RemoveAvailebleUnits;
+using WebApplication1.Controllers.backendBodys.removeUnitData;
+using WebApplication1.Controllers.backendBodys.UpdateUnit;
 using WebApplication1.data;
 using WebApplication1.data.ORM;
 
@@ -18,6 +22,12 @@ namespace WebApplication1.Controllers
         public BackendController(ILogger<BackendController> logger)
         {
             _logger = logger;
+        }
+
+        [HttpPost("test")]
+        public ActionResult Test() 
+        {
+            return Ok("success");
         }
 
         [HttpPost("receiveAllUnitsData")]
@@ -41,6 +51,26 @@ namespace WebApplication1.Controllers
             });
         }
 
+        [HttpPost("updateUnit")]
+        public async Task<ActionResult> UpdateUnit(UpdateUnitBody request)
+        {
+            try
+            {
+                long count = await ORM_SqLite.Update(request.Unit, connection)
+                                             .Where(unit => unit.UnitID == request.Unit.UnitID)
+                                             .Execute();
+
+                if (count <= 0)
+                    return BadRequest("!!update failed unit doesn't exist!!");
+            }
+            catch (SqliteException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+
+            return Ok( new UpdateUnitBody() { Unit = request.Unit });
+        }
+
         [HttpPost("addUnitData")]
         public async Task<ActionResult> AddUnitData(AddUnitDataRequestBody request)
         {
@@ -62,9 +92,12 @@ namespace WebApplication1.Controllers
 
                 addUnit.UserID = request.UserID;
 
-                await ORM_SqLite.Update(addUnit, connection)
-                                .Where(unitData => unitData.UnitID == request.UnitID)
-                                .Execute();
+                long count = await ORM_SqLite.Update(addUnit, connection)
+                                             .Where(unitData => unitData.UnitID == request.UnitID)
+                                             .Execute();
+
+                if (count <= 0)
+                    return BadRequest("!!update failed unit doesn't exist!!");
             }
             catch (SqliteException ex)
             {
@@ -79,9 +112,13 @@ namespace WebApplication1.Controllers
         {
             try
             {
-                await ORM_SqLite.Remove<UnitData>(connection)
-                                .Where(unitData => unitData.ModuleID == request.ModuleID && unitData.UserID == request.UserID)
-                                .Execute();
+                request.Unit.UserID = 0;
+                long count = await ORM_SqLite.Update(request.Unit, connection)
+                                             .Where(unitData => unitData.UnitID == request.Unit.UnitID)
+                                             .Execute();
+
+                if (count <= 0)
+                    return BadRequest("!!update failed unit doesn't exist!!");
             }
             catch (SqliteException ex)
             {
@@ -106,7 +143,27 @@ namespace WebApplication1.Controllers
                 return BadRequest(ex.Message);
             }
 
-            return Ok(unitsData);
+            return Ok(new GetAvailableUnitsResponseBody() { Units = unitsData });
+        }
+
+        [HttpPost("removeAvailableUnit")]
+        public async Task<ActionResult> RemoveAvailableUnit(RemoveAvailebleUnitRequestBody request)
+        {
+            try
+            {
+                long count = await ORM_SqLite.Remove<UnitData>(connection)
+                                             .Where(unit => unit.UserID == 0 && unit.UnitID == request.UnitID)
+                                             .Execute();
+                if(count <= 0) 
+                    return BadRequest("!!unit to be removed not found in database!!");
+            }
+            catch (SqliteException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+
+            return Ok();
+
         }
     }
 }

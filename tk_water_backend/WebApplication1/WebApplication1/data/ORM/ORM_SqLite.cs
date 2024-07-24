@@ -46,17 +46,10 @@ public static class ORM_SqLite
             }
         }
 
-        string insert = $"INSERT INTO {tableName} ({valueNames})\n VALUES ({values})";
-        SqliteCommand command = new(insert, connection);
-
-        int rowsInserted;
-        using (connection)
-        {
-            await connection.OpenAsync();
-            rowsInserted = await command.ExecuteNonQueryAsync();
-        }
-
-        return (rowsInserted == 1);
+        ORM_Iterable<T> result = new(connection);
+        result.SqlCommand.Append($"INSERT INTO {tableName} ({valueNames})\n VALUES ({values})");
+        
+        return (await result.GetAfflictedCount() == 0);
     }
 
     public static ORM_Iterable<T> Update<T>(T row, SqliteConnection connection) where T : ORM_Table, new()

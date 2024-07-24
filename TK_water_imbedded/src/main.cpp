@@ -3,6 +3,7 @@
 #include "waterPump/WaterPump.h"
 #include <TK_httpsClient.h>
 #include <StringTools.h>
+#include <ArduinoJson.h>
 #include <Arduino.h>
 #include <RGB_Led.h>
 #include <EEPROM.h>
@@ -17,40 +18,16 @@
 #define LED_1_G 27
 #define LED_1_B 12
 
-static const uint8_t wateringThreshold_address = 97;
+#define wateringThreshold_address 97
 
 static uint8_t wateringThreshold = 70;
 
 static WifiState wifiState = notFound;
-static const String wifiUnitID = String(hash(WiFi.macAddress().c_str()));
+static const size_t wifiUnitID = hash(WiFi.macAddress().c_str());
 
 static RGB_Led led = RGB_Led(LED_1_R, LED_1_G, LED_1_B);
 
 static httpsRequest_config* httpConfig = new httpsRequest_config("https://192.168.3.79:7299");	
-
-void setupInitServer()
-{
-  static bool startOfFunction = true;
-
-  if(startOfFunction)
-  {
-    if(WiFi.status() == WL_CONNECTED)
-      WiFi.disconnect();
-
-    startServer();
-    clearWifiData_fromEEPROM();
-    wifiState = hotspot;
-  }
-
-  startOfFunction = false;
-
-  String ssid = "";
-  String password = "";
-  if(getWifiData_fromEEPROM(/*out*/ssid, /*out*/password))
-    ESP.restart();
-  
-  return;
-}
 
 void setLedToState()
 {
@@ -86,6 +63,31 @@ void setLedToState()
   }
 }
 
+
+void setupInitServer()
+{
+  static bool startOfFunction = true;
+
+  if(startOfFunction)
+  {
+    if(WiFi.status() == WL_CONNECTED)
+      WiFi.disconnect();
+
+    startServer();
+    clearWifiData_fromEEPROM();
+    wifiState = hotspot;
+  }
+
+  startOfFunction = false;
+
+  String ssid = "";
+  String password = "";
+  if(getWifiData_fromEEPROM(/*out*/ssid, /*out*/password))
+    ESP.restart();
+  
+  return;
+}
+
 bool signIn()
 {
   const char* response = httpsPost
@@ -96,26 +98,43 @@ bool signIn()
     /*out*/wifiState
   );
 
-  Serial.println("[post(test)] response: " + String(response));
+  Serial.println("[post(signIn)] response: " + String(response));
   TRY_DELETE_RESPONSE(response);
 
   return (wifiState == connected);
 }
 
+void setThreshold(const char* response)
+{
+  JsonDocument json;
+
+  if(deserializeJson(json, response) != DeserializationError::Ok)
+    return;
+
+  uint8_t threshold = json["moistureThreshold"];
+
+  if(threshold > 100)
+    return;
+
+  wateringThreshold = threshold;
+  EEPROM.write(wateringThreshold_address, wateringThreshold);
+  EEPROM.commit();
+}
+
 void sendData(uint8_t moistureLevel)
 {
   String moistureLevel_str = String(moistureLevel);
-  
+
   const char* response = httpsPost
   (
     "controlCentrum/postUnitMeasurement", 
-    "{\"unitID\": \""+ wifiUnitID +"\", \"moistureLevel\": "+ moistureLevel_str +"}", 
+    "{\"unitID\": \""+ String(wifiUnitID) +"\", \"moistureLevel\": "+ moistureLevel_str +"}", 
     httpConfig, 
     /*out*/wifiState
   );
 
   Serial.println("[post(postUnitMeasurement)] response: " + String(response) + "\n");
-  
+
   TRY_DELETE_RESPONSE(response);
 }
 
@@ -135,12 +154,12 @@ void setup()
   wifiState = wifiInit_EEPROM();
 
   if(signIn())
-    Serial.println("Connected to wifi");
+    Serial.println("Connected to server");
 }
 
 void loop() 
 {
-  static Timer dataTimer = Timer(millieSeconds);
+  static BigTimer dataTimer = BigTimer(minutes);
 
   static bool pumpWater = false;
   static bool initServer = false;
@@ -154,11 +173,13 @@ void loop()
   if(initServer)
     setupInitServer();
 
-  if(dataTimer.waitTime(2000))
+  if(dataTimer.waitTime(1))
   {
-    uint8_t moistureLevel = waterSensor.getAverageReading();
+    uint8_t moistureLevel = random(0,100);//waterSensor.getAverageReading();
     if(moistureLevel > wateringThreshold)
       pumpWater = true;
+
+    Serial.println("wateringThreshold: " + String(wateringThreshold));
 
     if(hasWifi(wifiState))
       sendData(moistureLevel);

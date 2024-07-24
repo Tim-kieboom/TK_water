@@ -89,13 +89,16 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
 
         return Convert.ToInt64(affectedRows ?? 0);
     }
-    public async Task Execute()
+    public async Task<int> Execute()
     {
+        int result;
         using (Connection)
         {
             await Connection.OpenAsync();
-            await SqlCommand.ExecuteNonQueryAsync();
+            result = await SqlCommand.ExecuteNonQueryAsync();
         }
+
+        return result;
     }
 
     public async Task<LinkedList<T>> GetResultAndPrint()

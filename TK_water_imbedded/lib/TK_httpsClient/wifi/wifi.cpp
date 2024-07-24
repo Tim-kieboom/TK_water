@@ -1,4 +1,4 @@
-#include <Timer.h>
+#include <TK_Timer.h>
 #include <WiFi.h>
 #include "wifi.h"
 
@@ -7,7 +7,7 @@ bool hasWifi(WifiState &wifiState)
   return (wifiState != notFound && wifiState != hotspot && wifiState != notConnected);
 }
 
-bool connectToWifi(const char* ssid, const char* password, /*out*/WifiState &wifiState, uint8_t timeout/*default = 10*/)
+bool connectToWifi(const char* ssid, const char* password, /*out*/WifiState &wifiState, uint8_t timeout_sec/*default = 10*/)
 {
   static Timer* timer = nullptr;
   if(timer == nullptr)
@@ -17,11 +17,11 @@ bool connectToWifi(const char* ssid, const char* password, /*out*/WifiState &wif
   }
 
   static uint8_t timeoutCounter = 0;
-  if(timer->waitTime(500))
+  if(timer->waitTime(1000))
   {
     Serial.printf("connect attempt %d\n", timeoutCounter);
 
-    if(++timeoutCounter >= timeout)
+    if(++timeoutCounter >= timeout_sec)
     {
       timeoutCounter = 0;
       wifiState = notConnected;

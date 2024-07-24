@@ -2,10 +2,13 @@
 using Microsoft.Data.Sqlite;
 using WebApplication1.data.ORM;
 using WebApplication1.data;
-using WebApplication1.Controllers.postUnitMeasurement;
 using WebApplication1.Controllers.controlCentrumBodys.registerUnit;
 using WebApplication1.Controllers.controlCentrumBodys.postUnitMeasurement;
 using WebApplication1.Controllers.controlCentrumBodys.signIn;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Numerics;
+using System.Data.Common;
 
 namespace WebApplication1.Controllers
 {
@@ -22,7 +25,7 @@ namespace WebApplication1.Controllers
         }
 
         [HttpPost("signIn")]
-        public async ActionResult signIn(SignInRequestBody request)
+        public async Task<ActionResult> SignIn(SignInRequestBody request)
         {
             try
             {
@@ -33,21 +36,26 @@ namespace WebApplication1.Controllers
                 if (unitCount > 0)
                     return Ok("success");
 
-                UnitData unit = new(0, 0, request.UnitID, "", 70, 0);
-                await ORM_SqLite.Insert(unit, connection);
+                UnitData unit = new(0, request.UnitID, "unitName", 70, 0);
+
+                bool success = await ORM_SqLite.Insert(unit, connection);
+                if (!success)
+                    return BadRequest("!!insertion into database failed!!");
+
             }
-            catch(Exception ex) 
+            catch(SqliteException ex) 
             {
                 Console.WriteLine(ex.Message); 
             }
 
-            return Ok("unit has been added to data");
+            return Ok("unit has been added to database");
         }
 
         [HttpPost("postUnitMeasurement")]
         public async Task<ActionResult> PostUnitMeasurement(PostUnitMeasurementRequestBody request)
         {
             UnitData? unitData;
+            Byte moistureThreshold = 101;
             try
             {
                  unitData = await ORM_SqLite.Select<UnitData>(connection)
@@ -58,11 +66,22 @@ namespace WebApplication1.Controllers
                 if(unitData == null)
                     return NotFound("unitID not found in dataBase");
 
-                if(request.MoistureLevel == unitData.MoistureLevel)
-                    return Ok(new PostUnitMeasurementResponseBody() { UnitsData = unitData });
+                try
+                {
+                    moistureThreshold = Convert.ToByte(unitData.MoistureThreshold);
+                } 
+                catch (OverflowException) {}
+
+                if (request.MoistureLevel == unitData.MoistureLevel)
+                    return Ok(new PostUnitMeasurementResponseBody() 
+                    { 
+                        MoistureThreshold = moistureThreshold
+                    });
 
                 unitData.MoistureLevel = request.MoistureLevel;
-                await ORM_SqLite.Insert(unitData, connection);
+                await ORM_SqLite.Update(unitData, connection)
+                                .Where(unit => unit.UnitID == unitData.UnitID)
+                                .Execute();
             }
             catch (SqliteException ex)
             {
@@ -71,7 +90,7 @@ namespace WebApplication1.Controllers
 
             return Ok(new PostUnitMeasurementResponseBody()
             {
-                UnitsData = unitData
+                MoistureThreshold = moistureThreshold
             });
         }
 
@@ -90,7 +109,6 @@ namespace WebApplication1.Controllers
             {
                 UnitID = request.UnitID,
                 UnitName = "unitName",
-                ModuleID = 0,
                 UserID = 0,
                 MoistureLevel = request.MoistureLevel,
                 MoistureThreshold = request.MoistureThreshold

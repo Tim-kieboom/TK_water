@@ -4,6 +4,6 @@ namespace WebApplication1.Controllers.controlCentrumBodys.postUnitMeasurement
 {
     public class PostUnitMeasurementResponseBody
     {
-        public UnitData UnitsData { get; set; } = new();
+        public Byte MoistureThreshold { get; set; } = new();
     }
 }

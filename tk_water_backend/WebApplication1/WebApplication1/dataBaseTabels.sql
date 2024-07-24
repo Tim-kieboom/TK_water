@@ -13,11 +13,10 @@ CREATE TABLE [unitData]
 CREATE TABLE [unitData] 
 (
   [userID] bigint NOT NULL
-, [moduleID] bigint DEFAULT (1) NOT NULL
 , [unitID] text NOT NULL
 , [unitName] text DEFAULT ('unitName') NOT NULL
 , [moistureLevel] bigint DEFAULT (0) NOT NULL
 , [moistureThreshold] bigint DEFAULT (0) NOT NULL
-, CONSTRAINT [sqlite_master_PK_unitData] PRIMARY KEY ([moduleID])
+, CONSTRAINT [sqlite_master_PK_unitData] PRIMARY KEY ([unitID])
 , FOREIGN KEY ([userID]) REFERENCES userData([userID])
 );
