@@ -8,6 +8,14 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WebApplication1.data.ORM;
 
+public static class Extensions
+{
+    public static bool isGenericTypeOf(this PropertyInfo prop, Type type)
+    {
+        return prop.PropertyType.IsGenericType && prop.PropertyType.GetGenericTypeDefinition() == type;
+    }
+}
+
 public class TK_ORM
 {
     public DbConnection Connection { get; set; }
@@ -98,8 +106,12 @@ public class TK_ORM
 
         foreach ((PropertyInfo prop, int index) in props.Select((value, index) => (value, index)))
         {
-            valueNames.Append(PropertyToName(prop));
+            if(prop.isGenericTypeOf(typeof(SqlSerial<>)) && prop.GetValue(row) == null)
+                    continue;
+
             string value = prop.GetValue(row)?.ToString() ?? "null";
+            valueNames.Append(PropertyToName(prop));
+
             if (prop.PropertyType == typeof(string))
             {
                 values.Append($"\'{value}\'");
@@ -138,8 +150,12 @@ public class TK_ORM
 
         foreach ((PropertyInfo prop, int index) in props.Select((value, index) => (value, index)))
         {
+            if (prop.isGenericTypeOf(typeof(SqlSerial<>)) && prop.GetValue(row) == null)
+                continue;
+
             Values.Append(PropertyToName(prop) + "=");
             string value = prop.GetValue(row)?.ToString() ?? "null";
+
             if (prop.PropertyType == typeof(string))
             {
                 Values.Append($"\'{value}\'");
@@ -276,11 +292,17 @@ public class TK_ORM
 
             if(Nullable.GetUnderlyingType(prop.PropertyType) != null && value == null)
                 continue;
-            
-            if (prop.PropertyType == typeof(DateTime) && value != null)
+
+            if ( prop.isGenericTypeOf(typeof(SqlSerial<>)) )
             {
-                DateTime date = DateTime.Parse((string)value);
-                prop.SetValue(obj, date);
+                var serialValue = Activator.CreateInstance(prop.PropertyType) 
+                    ?? throw new Exception($"!!serialValue is null at GetResult propertyInfo: {prop}!!");
+
+                PropertyInfo sqlSerialProp = serialValue.GetType().GetProperty("Key")
+                    ?? throw new Exception($"!!serialValue is does not have property Key at GetResult propertyInfo: {prop}!!");
+
+                sqlSerialProp.SetValue(serialValue, value);
+                prop.SetValue(obj, serialValue);
                 continue;
             }
 

@@ -9,23 +9,11 @@ using System.Text;
 
 namespace WebApplication1.data.ORM;
 
-public static class Extensions
+public static class MyExtensions
 {
     public static void Append(this IDbCommand cmd, string sqlLine)
     {
         cmd.CommandText += sqlLine;
-    }
-
-    public static void AddParameter(this IDbCommand cmd, DateTime value)
-    {
-        IDbDataParameter parameter = cmd.CreateParameter();
-
-        int index = cmd.Parameters.Count + 1;
-        parameter.ParameterName = $"@parameter{index}";
-        parameter.Value = value.ToString("yyyy-MM-dd HH:mm:ss");
-
-        cmd.Append($"DATETIME({parameter.ParameterName})");
-        cmd.Parameters.Add(parameter);
     }
 
     public static void AddParameter(this IDbCommand cmd, object value)
@@ -143,7 +131,7 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
             var prop = (PropertyInfo)leftMember.Member;
             if (prop.PropertyType == typeof(DateTime))
             {
-                columnName = "DATETIME(" + columnName + ")";
+                columnName = columnName;
             }
 
             SqlCommand.Append(columnName);
@@ -182,7 +170,7 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
         }
         else if (body.Right is ConstantExpression rightConst)
         {
-            string value = rightConst?.Value?.ToString() ?? "";
+            object value = rightConst?.Value ?? Expression.Default(rightConst?.Type!);
 
             SqlCommand.AddParameter(value);
         }

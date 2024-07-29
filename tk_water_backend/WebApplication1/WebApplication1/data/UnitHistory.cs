@@ -17,7 +17,7 @@ namespace WebApplication1.data
 {
     public class UnitHistory : ORM_Table
     {
-        public long? HistoryID { get; set; }
+        public SqlSerial<long>? HistoryID { get; set; }
         public string UnitID { get; set; } = string.Empty;
         public short MoistureLevel { get; set; }
         public short MoistureThreshold { get; set; }
@@ -29,6 +29,16 @@ namespace WebApplication1.data
         {
             HistoryID = null;
             Timestamp = DateTime.Now;
+
+            UnitID = currentUnit.UnitID;
+            MoistureLevel = currentUnit.MoistureLevel;
+            MoistureThreshold = currentUnit.MoistureThreshold;
+        }
+
+        public UnitHistory(UnitData currentUnit, DateTime timestamp)
+        {
+            HistoryID = null;
+            Timestamp = timestamp;
 
             UnitID = currentUnit.UnitID;
             MoistureLevel = currentUnit.MoistureLevel;

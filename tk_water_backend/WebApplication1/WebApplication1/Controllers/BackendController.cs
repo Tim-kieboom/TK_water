@@ -201,8 +201,8 @@ namespace WebApplication1.Controllers
             try
             {
                 unitsData = await dataBase.Select<UnitData>()
-                                            .Where(unitData => unitData.UserID == 0)
-                                            .GetResult();
+                                          .Where(unitData => unitData.UserID == 0)
+                                          .GetResult();
             }
             catch (NpgsqlException ex)
             {

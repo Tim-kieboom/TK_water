@@ -3,7 +3,7 @@ using System.Text;
 
 namespace WebApplication1.data.ORM
 {
-    public class PrimaryKey<T>
+    public class SqlSerial<T>
     {
         public T? Key { get; set; }
     }
@@ -17,7 +17,16 @@ namespace WebApplication1.data.ORM
             PropertyInfo[] props = this.GetType().GetProperties();
             foreach ((PropertyInfo prop, int index) in props.Select((index, prop) => (index, prop))) 
             {
-                sb.Append($"{prop.Name}: {prop.GetValue(this)?.ToString() ?? "null"}");
+                if (prop.PropertyType == typeof(SqlSerial<>))
+                {
+                    SqlSerial<object>? value = (SqlSerial<object>?)prop.GetValue(this) ?? null;
+                    sb.Append($"SERIAL({prop.Name}): {value?.Key?.ToString() ?? "null"}");
+                }
+                else
+                {
+                    sb.Append($"{prop.Name}: {prop.GetValue(this)?.ToString() ?? "null"}");
+                }
+
 
                 if(index < props.Length-1)
                     sb.Append(", ");
