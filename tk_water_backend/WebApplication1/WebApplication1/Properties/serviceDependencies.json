@@ -1,9 +1,3 @@
 {
-  "dependencies": {
-    "sqlite1": {
-      "type": "sqlite",
-      "connectionId": "ConnectionStrings:unitDataBase",
-      "dynamicId": null
-    }
-  }
+  "dependencies": {}
 }

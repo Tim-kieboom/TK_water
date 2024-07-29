@@ -1,0 +1,26 @@
+﻿CREATE TABLE IF NOT EXISTS userData
+(
+    userID SERIAL PRIMARY KEY,
+    userName VARCHAR(50) NOT NULL,
+    password VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS unitData
+(
+    userID INT NOT NULL,
+    unitID VARCHAR(20) PRIMARY KEY,
+    unitName VARCHAR(50) DEFAULT 'unitName' NOT NULL,
+    moistureLevel SMALLINT DEFAULT 0 NOT NULL,
+    moistureThreshold SMALLINT DEFAULT 0 NOT NULL,
+    FOREIGN KEY (userID) REFERENCES userData(userID)
+);
+
+CREATE TABLE IF NOT EXISTS unitHistory
+(
+    historyID BIGSERIAL PRIMARY KEY,
+    unitID VARCHAR(20) NOT NULL,
+    moistureLevel SMALLINT DEFAULT 0 NOT NULL,
+    moistureThreshold SMALLINT DEFAULT 0 NOT NULL,
+    timestamp TIMESTAMP,
+    FOREIGN KEY (unitID) REFERENCES unitData(unitID)
+);

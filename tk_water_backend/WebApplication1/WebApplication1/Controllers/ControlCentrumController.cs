@@ -1,14 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.Sqlite;
 using WebApplication1.data.ORM;
 using WebApplication1.data;
 using WebApplication1.Controllers.controlCentrumBodys.registerUnit;
 using WebApplication1.Controllers.controlCentrumBodys.postUnitMeasurement;
 using WebApplication1.Controllers.controlCentrumBodys.signIn;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Numerics;
-using System.Data.Common;
+using Npgsql;
 
 namespace WebApplication1.Controllers
 {
@@ -17,7 +13,7 @@ namespace WebApplication1.Controllers
     public class ControlCentrumController : ControllerBase
     {
         private readonly ILogger<BackendController> _logger;
-        private SqliteConnection connection = new("Data Source=unitDataBase.db");
+        private static readonly TK_ORM dataBase = new(new NpgsqlConnection("host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;"));
 
         public ControlCentrumController(ILogger<BackendController> logger)
         {
@@ -29,7 +25,7 @@ namespace WebApplication1.Controllers
         {
             try
             {
-                long unitCount = await ORM_SqLite.Select<UnitData>(connection)
+                long unitCount = await dataBase.Select<UnitData>()
                                                  .Where(unit => unit.UnitID == request.UnitID)
                                                  .GetAfflictedCount();
 
@@ -38,12 +34,12 @@ namespace WebApplication1.Controllers
 
                 UnitData unit = new(0, request.UnitID, "unitName", 70, 0);
 
-                bool success = await ORM_SqLite.Insert(unit, connection);
+                bool success = await dataBase.Insert(unit);
                 if (!success)
                     return BadRequest("!!insertion into database failed!!");
 
             }
-            catch(SqliteException ex) 
+            catch(NpgsqlException ex) 
             {
                 Console.WriteLine(ex.Message); 
             }
@@ -58,7 +54,7 @@ namespace WebApplication1.Controllers
             Byte moistureThreshold = 101;
             try
             {
-                 unitData = await ORM_SqLite.Select<UnitData>(connection)
+                 unitData = await dataBase.Select<UnitData>()
                                             .Where(unitData => unitData.UnitID == request.UnitID)
                                             .GetResult()
                                             .AsyncFirstOrDefault();
@@ -73,17 +69,23 @@ namespace WebApplication1.Controllers
                 catch (OverflowException) {}
 
                 if (request.MoistureLevel == unitData.MoistureLevel)
-                    return Ok(new PostUnitMeasurementResponseBody() 
-                    { 
+                {
+                    await UpdateUnitHistory(unitData);
+
+                    return Ok(new PostUnitMeasurementResponseBody()
+                    {
                         MoistureThreshold = moistureThreshold
                     });
+                }
 
                 unitData.MoistureLevel = request.MoistureLevel;
-                await ORM_SqLite.Update(unitData, connection)
+                await dataBase.Update(unitData)
                                 .Where(unit => unit.UnitID == unitData.UnitID)
                                 .Execute();
+
+                await UpdateUnitHistory(unitData);
             }
-            catch (SqliteException ex)
+            catch (NpgsqlException ex)
             {
                 return BadRequest(ex.Message);
             }
@@ -98,7 +100,7 @@ namespace WebApplication1.Controllers
         [HttpPost("registerUnit")]
         public async Task<ActionResult> RegisterUnit(RegisterUnitRequestBody request)
         {
-            long count = await ORM_SqLite.Select<UnitData>(connection)
+            long count = await dataBase.Select<UnitData>()
                                          .Where(unitData => unitData.UnitID == request.UnitID)
                                          .GetAfflictedCount();
 
@@ -116,15 +118,22 @@ namespace WebApplication1.Controllers
 
             try
             {
-                await ORM_SqLite.Insert(newUnit, connection);
+                await dataBase.Insert(newUnit);
             }
-            catch (SqliteException ex)
+            catch (NpgsqlException ex)
             {
                 return BadRequest(ex.Message);
             }
 
 
             return Ok();
+        }
+
+        private async Task UpdateUnitHistory(UnitData currentUnit)
+        {
+            UnitHistory newHistory = new(currentUnit);
+
+            await dataBase.Insert(newHistory);
         }
     }
 }

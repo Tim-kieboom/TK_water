@@ -2,6 +2,6 @@
 {
     public class ReceiveAllUnitsDataRequestBody
     {
-        public long UserID { get; set; }
+        public int UserID { get; set; }
     }
 }

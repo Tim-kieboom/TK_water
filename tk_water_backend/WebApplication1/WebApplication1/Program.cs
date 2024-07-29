@@ -1,10 +1,19 @@
-using Microsoft.Data.Sqlite;
+using Npgsql;
 using WebApplication1.data;
 using WebApplication1.data.ORM;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+
+try
+{
+    var database = new TK_ORM(new NpgsqlConnection("host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;"));
+    string sqlCreateTablesIfNotExist = File.ReadAllText(@"dataBaseTabels.txt");
+    await database.ExecuteSqlQuery(sqlCreateTablesIfNotExist);
+}
+catch (Exception ex)
+{
+    Console.WriteLine(ex.Message);
+}
 
 var builder = WebApplication.CreateBuilder(args);
-
 var webPolicy = "webPolicy";
 
 builder.Services.AddCors(options =>

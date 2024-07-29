@@ -1,0 +1,19 @@
+version: '3.4'
+
+services:
+  postgres:
+    image: postgres:12.19-bullseye
+    ports:
+      - 5432:5432
+    volumes:
+      - ~/apps/postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=waterUnitPassowrd
+      - POSTGRES_USER=tkWaterUser
+      - POSTGRES_DB=WaterUnitData
+
+  webapplication1:
+    image: ${DOCKER_REGISTRY-}webapplication1
+    build:
+      context: .
+      dockerfile: WebApplication1/Dockerfile
