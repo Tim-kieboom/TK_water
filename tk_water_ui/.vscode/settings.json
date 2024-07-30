@@ -1,6 +1,8 @@
 {
     "cSpell.words": [
         "registerables",
-        "tailwindcss"
+        "tailwindcss",
+        "Toastalert",
+        "Toastr"
     ]
 }

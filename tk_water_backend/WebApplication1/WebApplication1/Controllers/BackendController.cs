@@ -7,6 +7,7 @@ using WebApplication1.Controllers.backendBodys.RemoveAvailebleUnits;
 using WebApplication1.Controllers.backendBodys.removeUnitData;
 using WebApplication1.Controllers.backendBodys.UnitHistory;
 using WebApplication1.Controllers.backendBodys.UpdateUnit;
+using WebApplication1.Controllers.genericBodys;
 using WebApplication1.data;
 using WebApplication1.data.ORM;
 
@@ -75,7 +76,7 @@ namespace WebApplication1.Controllers
         [HttpPost("test")]
         public ActionResult Test() 
         {
-            return Ok("success");
+            return Ok(new SuccessResponseBody());
         }
 
         [HttpPost("receiveAllUnitsData")]
@@ -110,7 +111,7 @@ namespace WebApplication1.Controllers
                                                  .AsyncFirstOrDefault();
 
                 if (unit == null)
-                    return BadRequest("!!update failed unit doesn't exist!!");
+                    return BadRequest(new FailedResponseBody() { Message = "!!update failed unit doesn't exist!!" });
 
                 unit.UnitName           = request.Unit.UnitName;
                 unit.MoistureThreshold  = request.Unit.MoistureThreshold;
@@ -121,11 +122,11 @@ namespace WebApplication1.Controllers
                                              .Execute();
 
                 if (count <= 0)
-                    return BadRequest("!!update failed unit doesn't exist!!");
+                    return BadRequest(new FailedResponseBody() { Message = "!!update failed unit doesn't exist!!" });
             }
             catch (NpgsqlException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new FailedResponseBody() { Message = ex.Message });
             }
 
             return Ok( new UpdateUnitBody() { Unit = request.Unit });
@@ -148,7 +149,7 @@ namespace WebApplication1.Controllers
                                           .AsyncFirstOrDefault();
 
                 if (addUnit == null)
-                    return NotFound($"no data with unitID: {request.UnitID} found");
+                    return NotFound(new FailedResponseBody() { Message = $"no data with unitID: {request.UnitID} found" });
 
                 addUnit.UserID = request.UserID;
 
@@ -157,11 +158,11 @@ namespace WebApplication1.Controllers
                                              .Execute();
 
                 if (count <= 0)
-                    return BadRequest("!!update failed unit doesn't exist!!");
+                    return BadRequest(new FailedResponseBody() { Message = "!!update failed unit doesn't exist!!" });
             }
             catch (NpgsqlException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new FailedResponseBody() { Message = ex.Message });
             }
 
             return Ok(addUnit);
@@ -179,7 +180,7 @@ namespace WebApplication1.Controllers
                                                  .AsyncFirstOrDefault();
 
                 if (unit == null)
-                    return BadRequest("!!update failed unit doesn't exist!!");
+                    return BadRequest(new FailedResponseBody() { Message = "!!update failed unit doesn't exist!!" });
 
                 unit.UserID = 0;
                 await dataBase.Update(unit)
@@ -188,10 +189,10 @@ namespace WebApplication1.Controllers
             }
             catch (NpgsqlException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new FailedResponseBody() { Message = ex.Message });
             }
 
-            return Ok();
+            return Ok(new SuccessResponseBody());
         }
 
         [HttpGet("getAvailableUnits")]
@@ -206,7 +207,7 @@ namespace WebApplication1.Controllers
             }
             catch (NpgsqlException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new FailedResponseBody() { Message = ex.Message });
             }
 
             return Ok(new GetAvailableUnitsResponseBody() { Units = unitsData });
@@ -221,14 +222,14 @@ namespace WebApplication1.Controllers
                                              .Where(unit => unit.UserID == 0 && unit.UnitID == request.UnitID)
                                              .Execute();
                 if(count <= 0) 
-                    return BadRequest("!!unit to be removed not found in database!!");
+                    return BadRequest(new FailedResponseBody() { Message = "!!unit to be removed not found in database!!" });
             }
             catch (NpgsqlException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new FailedResponseBody() { Message = ex.Message });
             }
 
-            return Ok();
+            return Ok(new SuccessResponseBody());
         }
 
         [HttpPost("UnitHistory")]
@@ -245,12 +246,13 @@ namespace WebApplication1.Controllers
             try
             {
                 history = await dataBase.Select<UnitHistory>()
-                                   .Where(unit => unit.Timestamp >= timeBegin && unit.Timestamp <= timeEnd)
-                                   .GetResult();
+                                        .Where(unit => unit.UnitID == request.UnitID)
+                                        .Where(unit => unit.Timestamp >= timeBegin && unit.Timestamp <= timeEnd)
+                                        .GetResult();
             }
             catch (NpgsqlException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new FailedResponseBody() { Message = ex.Message });
             }
 
 

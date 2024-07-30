@@ -10,7 +10,7 @@ namespace WebApplication1.data.ORM;
 
 public static class Extensions
 {
-    public static bool isGenericTypeOf(this PropertyInfo prop, Type type)
+    public static bool IsGenericTypeOf(this PropertyInfo prop, Type type)
     {
         return prop.PropertyType.IsGenericType && prop.PropertyType.GetGenericTypeDefinition() == type;
     }
@@ -106,7 +106,7 @@ public class TK_ORM
 
         foreach ((PropertyInfo prop, int index) in props.Select((value, index) => (value, index)))
         {
-            if(prop.isGenericTypeOf(typeof(SqlSerial<>)) && prop.GetValue(row) == null)
+            if(prop.IsGenericTypeOf(typeof(SqlSerial<>)) && prop.GetValue(row) == null)
                     continue;
 
             string value = prop.GetValue(row)?.ToString() ?? "null";
@@ -150,9 +150,6 @@ public class TK_ORM
 
         foreach ((PropertyInfo prop, int index) in props.Select((value, index) => (value, index)))
         {
-            if (prop.isGenericTypeOf(typeof(SqlSerial<>)) && prop.GetValue(row) == null)
-                continue;
-
             Values.Append(PropertyToName(prop) + "=");
             string value = prop.GetValue(row)?.ToString() ?? "null";
 
@@ -293,15 +290,15 @@ public class TK_ORM
             if(Nullable.GetUnderlyingType(prop.PropertyType) != null && value == null)
                 continue;
 
-            if ( prop.isGenericTypeOf(typeof(SqlSerial<>)) )
+            if ( prop.IsGenericTypeOf(typeof(SqlSerial<>)) )
             {
                 var serialValue = Activator.CreateInstance(prop.PropertyType) 
-                    ?? throw new Exception($"!!serialValue is null at GetResult propertyInfo: {prop}!!");
+                    ?? throw new NullReferenceException($"!!serialValue is null at GetResult propertyInfo: {prop}!!");
 
-                PropertyInfo sqlSerialProp = serialValue.GetType().GetProperty("Key")
-                    ?? throw new Exception($"!!serialValue is does not have property Key at GetResult propertyInfo: {prop}!!");
+                PropertyInfo sqlSerialKey = serialValue.GetType().GetProperty("Key")
+                    ?? throw new NullReferenceException($"!!serialValue is does not have property Key at GetResult propertyInfo: {prop}!!");
 
-                sqlSerialProp.SetValue(serialValue, value);
+                sqlSerialKey.SetValue(serialValue, value);
                 prop.SetValue(obj, serialValue);
                 continue;
             }
