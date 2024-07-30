@@ -27,7 +27,7 @@ static const size_t wifiUnitID = hash(WiFi.macAddress().c_str());
 
 static RGB_Led led = RGB_Led(LED_1_R, LED_1_G, LED_1_B);
 
-static httpsRequest_config* httpConfig = new httpsRequest_config("https://192.168.3.79:7299");	
+static httpsRequest_config* httpConfig = new httpsRequest_config("https://192.168.3.79:1038");	
 
 void setLedToState()
 {
@@ -173,7 +173,7 @@ void loop()
   if(initServer)
     setupInitServer();
 
-  if(dataTimer.waitTime(1))
+  if(dataTimer.waitTime(10))
   {
     uint8_t moistureLevel = random(0,100);//waterSensor.getAverageReading();
     if(moistureLevel > wateringThreshold)
