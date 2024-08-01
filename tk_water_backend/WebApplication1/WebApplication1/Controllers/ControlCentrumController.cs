@@ -13,7 +13,8 @@ namespace WebApplication1.Controllers
     public class ControlCentrumController : ControllerBase
     {
         private readonly ILogger<BackendController> _logger;
-        private static readonly TK_ORM dataBase = new(new NpgsqlConnection("host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;"));
+        private static readonly string connectionString = "host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;";
+        private TK_ORM DataBase = new(() => { return new NpgsqlConnection(connectionString); } );
 
         public ControlCentrumController(ILogger<BackendController> logger)
         {
@@ -25,7 +26,7 @@ namespace WebApplication1.Controllers
         {
             try
             {
-                long unitCount = await dataBase.Select<UnitData>()
+                long unitCount = await DataBase.Select<UnitData>()
                                                  .Where(unit => unit.UnitID == request.UnitID)
                                                  .GetAfflictedCount();
 
@@ -34,7 +35,7 @@ namespace WebApplication1.Controllers
 
                 UnitData unit = new(0, request.UnitID, "unitName", 70, 0);
 
-                bool success = await dataBase.Insert(unit);
+                bool success = await DataBase.Insert(unit);
                 if (!success)
                     return BadRequest("!!insertion into database failed!!");
 
@@ -54,7 +55,7 @@ namespace WebApplication1.Controllers
             Byte moistureThreshold = 101;
             try
             {
-                 unitData = await dataBase.Select<UnitData>()
+                 unitData = await DataBase.Select<UnitData>()
                                             .Where(unitData => unitData.UnitID == request.UnitID)
                                             .GetResult()
                                             .AsyncFirstOrDefault();
@@ -79,7 +80,7 @@ namespace WebApplication1.Controllers
                 }
 
                 unitData.MoistureLevel = request.MoistureLevel;
-                await dataBase.Update(unitData)
+                await DataBase.Update(unitData)
                                 .Where(unit => unit.UnitID == unitData.UnitID)
                                 .Execute();
 
@@ -100,7 +101,7 @@ namespace WebApplication1.Controllers
         [HttpPost("registerUnit")]
         public async Task<ActionResult> RegisterUnit(RegisterUnitRequestBody request)
         {
-            long count = await dataBase.Select<UnitData>()
+            long count = await DataBase.Select<UnitData>()
                                          .Where(unitData => unitData.UnitID == request.UnitID)
                                          .GetAfflictedCount();
 
@@ -118,7 +119,7 @@ namespace WebApplication1.Controllers
 
             try
             {
-                await dataBase.Insert(newUnit);
+                await DataBase.Insert(newUnit);
             }
             catch (NpgsqlException ex)
             {
@@ -132,8 +133,7 @@ namespace WebApplication1.Controllers
         private async Task UpdateUnitHistory(UnitData currentUnit)
         {
             UnitHistory newHistory = new(currentUnit);
-
-            await dataBase.Insert(newHistory);
+            await DataBase.Insert(newHistory);
         }
     }
 }

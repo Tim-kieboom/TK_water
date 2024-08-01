@@ -18,9 +18,13 @@ namespace WebApplication1.data
     public class UnitHistory : ORM_Table
     {
         public SqlSerial<long>? HistoryID { get; set; }
+
         public string UnitID { get; set; } = string.Empty;
+
         public short MoistureLevel { get; set; }
+
         public short MoistureThreshold { get; set; }
+
         public DateTime Timestamp { get; set; } = DateTime.Now;
 
         public UnitHistory() {}

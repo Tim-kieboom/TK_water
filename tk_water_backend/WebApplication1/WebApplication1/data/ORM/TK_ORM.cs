@@ -1,9 +1,14 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.FileSystemGlobbing.Internal;
+using MySqlX.XDevAPI.Common;
+using Org.BouncyCastle.Asn1.X509.Qualified;
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using System.Windows.Input;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WebApplication1.data.ORM;
@@ -14,93 +19,70 @@ public static class Extensions
     {
         return prop.PropertyType.IsGenericType && prop.PropertyType.GetGenericTypeDefinition() == type;
     }
+
+    public static void AddParameters(this DbCommand command, LinkedList<(string name, object? value)> parameters)
+    {
+        foreach ((string parameterName, object? value) in parameters)
+        {
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = parameterName;
+            parameter.Value = value;
+            command.Parameters.Add(parameter);
+        }
+    }
+
+    public static IEnumerable<(T, int)> WithIndex<T>(this IEnumerable<T> source)
+    {
+        return source.Select((el, index) => (el, index));
+    }
 }
 
 public class TK_ORM
 {
-    public DbConnection Connection { get; set; }
-    public DbCommand SQLCommand { get; set; }
+    public Func<DbConnection> GetConnection { get; set; }
 
-    public TK_ORM(DbConnection connection)
+    public TK_ORM(Func<DbConnection> getConnection)
     {
-        Connection = connection;
-        SQLCommand = Connection.CreateCommand();
-    }
-
-    ~TK_ORM()
-    {
-        Connection.Close();
+        GetConnection = getConnection;
     }
 
     public async Task<int> ExecuteSqlQuery(string sqlQuery)
     {
-        ResetSqlCommand();
-        SQLCommand.Append(sqlQuery);
+        ORM_Iterable<ORM_Table> iterator = new(GetConnection);
+        iterator.Query.Append(sqlQuery);
 
-        int result;
-
-            if(Connection.State != ConnectionState.Open) 
-                await Connection.OpenAsync();
-            
-            result = await SQLCommand.ExecuteNonQueryAsync();
-
-        return result;
+        return await iterator.Execute();
     }
 
     public async Task<LinkedList<T>> GetResultFrom_SqlQuery<T>(string sqlQuery) where T : ORM_Table, new()
     {
-        ResetSqlCommand();
-        SQLCommand.Append(sqlQuery);
+        ORM_Iterable<T> iterator = new(GetConnection);
+        iterator.Query.Append(sqlQuery);
 
-        LinkedList<T> result;
-
-            if(Connection.State != ConnectionState.Open)
-                await Connection.OpenAsync();
-
-            using IDataReader reader = await SQLCommand.ExecuteReaderAsync();
-            if (reader == null)
-            {
-                Connection.Close();
-                return [];
-            }
-
-            result = await GetAllResult<T>(reader);
-
-        return result;
+        return await iterator.GetResult();
     }
 
     public async Task<long> GetAfflictedCountFrom_SqlQuery(string sqlQuery)
     {
-        ResetSqlCommand();
-        SQLCommand.Append(sqlQuery);
+        ORM_Iterable<ORM_Table> iterator = new(GetConnection);
+        iterator.Query.Append(sqlQuery);
 
-        object? affectedRows;
-
-            if (Connection.State != ConnectionState.Open)
-                await Connection.OpenAsync();
-
-            affectedRows = await SQLCommand.ExecuteScalarAsync();
-
-        return Convert.ToInt64(affectedRows ?? 0);
+        return await iterator.GetAfflictedCount();
     }
 
     public ORM_Iterable<T> Remove<T>() where T : ORM_Table, new()
     {
-        ResetSqlCommand();
+        string tableName = typeof(T).Name;
 
-        string tableName = GetTableName(typeof(T));
-
-        ORM_Iterable<T> result = new(Connection, SQLCommand);
-        result.SqlCommand.Append($"DELETE FROM {tableName} ");
-        return result;
+        ORM_Iterable<T> iterator = new(GetConnection);
+        iterator.Query.Append($"DELETE FROM {tableName} ");
+        return iterator;
     }
 
     public async Task<bool> Insert<T>(T row) where T : ORM_Table, new()
     {
-        ResetSqlCommand();
-
-        PropertyInfo[] props = GetProperties(typeof(T));
-        string tableName = GetTableName(typeof(T));
+        PropertyInfo[] props = typeof(T).GetProperties();
+        string tableName = typeof(T).Name;
         StringBuilder valueNames = new();
         StringBuilder values = new();
 
@@ -110,7 +92,7 @@ public class TK_ORM
                     continue;
 
             string value = prop.GetValue(row)?.ToString() ?? "null";
-            valueNames.Append(PropertyToName(prop));
+            valueNames.Append(prop.Name);
 
             if (prop.PropertyType == typeof(string))
             {
@@ -134,23 +116,21 @@ public class TK_ORM
             }
         }
 
-        ORM_Iterable<T> result = new(Connection, SQLCommand);
-        result.SqlCommand.Append($"INSERT INTO {tableName} ({valueNames})\n VALUES ({values})");
+        ORM_Iterable<T> iterator = new(GetConnection);
+        iterator.Query.Append($"INSERT INTO {tableName} ({valueNames})\n VALUES ({values})");
         
-        return (await result.GetAfflictedCount() == 0);
+        return (await iterator.GetAfflictedCount() == 0);
     }
 
     public ORM_Iterable<T> Update<T>(T row) where T : ORM_Table, new()
     {
-        ResetSqlCommand(); 
-
-        string tableName = GetTableName(typeof(T));
-        PropertyInfo[] props = GetProperties(typeof(T));
+        string tableName = typeof(T).Name;
+        PropertyInfo[] props = typeof(T).GetProperties();
         StringBuilder Values = new();
 
         foreach ((PropertyInfo prop, int index) in props.Select((value, index) => (value, index)))
         {
-            Values.Append(PropertyToName(prop) + "=");
+            Values.Append(prop.Name + "=");
             string value = prop.GetValue(row)?.ToString() ?? "null";
 
             if (prop.PropertyType == typeof(string))
@@ -173,28 +153,24 @@ public class TK_ORM
         }
 
         string updateString = $"UPDATE {tableName} \nSET {Values}\n";
-        ORM_Iterable<T> result = new(Connection, SQLCommand);
-        result.SqlCommand.Append(updateString);
+        ORM_Iterable<T> iterator = new(GetConnection);
+        iterator.Query.Append(updateString);
 
-        return result;
+        return iterator;
     }
 
     public ORM_Iterable<T> Select<T>() where T : ORM_Table, new()
     {
-        ResetSqlCommand();
+        string tableName = typeof(T).Name;
 
-        string tableName = GetTableName(typeof(T));
-
-        ORM_Iterable <T> result = new(Connection, SQLCommand);
-        result.SqlCommand.Append($"SELECT * FROM {tableName}\n");
-        return result;
+        ORM_Iterable<T> iterator = new(GetConnection);
+        iterator.Query.Append($"SELECT * FROM {tableName}\n");
+        return iterator;
     }
 
     public ORM_Iterable<T> SelectMax<T>(Expression<Func<T, object>> selectColumn) where T : ORM_Table, new()
     {
-        ResetSqlCommand();
-
-        string tableName = GetTableName(typeof(T));
+        string tableName = typeof(T).Name;
         string columnName;
 
         if (selectColumn.Body is MemberExpression member)
@@ -208,18 +184,16 @@ public class TK_ORM
         else
         {
             throw new ArgumentException("!!\"Expression<Func<T, object>> selectColumn\" can only be an memberExpression!!");
-        }    
+        }
 
-        ORM_Iterable<T> result = new(Connection, SQLCommand);
-        result.SqlCommand.Append($"SELECT MAX({columnName}) FROM {tableName}\n");
-        return result;
+        ORM_Iterable<T> iterator = new(GetConnection);
+        iterator.Query.Append($"SELECT MAX({columnName}) FROM {tableName}\n");
+        return iterator;
     }
 
     public ORM_Iterable<T> SelectMin<T>(Expression<Func<T, object>> selectColumn) where T : ORM_Table, new()
     {
-        ResetSqlCommand();
-
-        string tableName = GetTableName(typeof(T));
+        string tableName = typeof(T).Name;
         string columnName;
 
         if (selectColumn.Body is MemberExpression member)
@@ -235,104 +209,18 @@ public class TK_ORM
             throw new ArgumentException("!!\"Expression<Func<T, object>> selectColumn\" can only be an memberExpression!!");
         }
 
-        ORM_Iterable<T> result = new(Connection, SQLCommand);
-        result.SqlCommand.Append($"SELECT MIN({columnName}) FROM {tableName}\n");
-        return result;
+        ORM_Iterable<T> iterator = new(GetConnection);
+        iterator.Query.Append($"SELECT MIN({columnName}) FROM {tableName}\n");
+        return iterator;
     }
 
     public ORM_Iterable<T> Count<T>() where T : ORM_Table, new()
     {
-        ResetSqlCommand();
+        string tableName = typeof(T).Name;
 
-        string tableName = GetTableName(typeof(T));
-
-        ORM_Iterable<T> result = new(Connection, SQLCommand);
-        result.SqlCommand.Append($"SELECT COUNT(*) FROM {tableName}\n");
-        return result;
-    }
-
-    public static async Task<LinkedList<T>> GetAllResult<T>(IDataReader reader) where T : ORM_Table, new()
-    {
-        LinkedList<T> result = [];
-
-        while (await reader.ReadAsync())
-        {
-            Dictionary<string, object?> row = [];
-
-            for (int i = 0; i < reader.FieldCount; i++)
-            {
-                string columnName = reader.GetName(i).ToLower();
-                object rowValue = reader.GetValue(i);
-                row.Add(columnName, rowValue);
-            }
-
-            T value = GetResult<T>(row);
-
-            if (value == null)
-                continue;
-
-            result.AddLast(value);
-        }
-        return result;
-    }
-
-    public static T GetResult<T>(Dictionary<string, object?> row) where T : ORM_Table, new()
-    {
-        T obj = new();
-
-        PropertyInfo[] props = typeof(T).GetProperties();
-
-        foreach (PropertyInfo prop in props)
-        {
-            string dbName = PropertyToName(prop).ToLower();
-            row.TryGetValue(dbName, out object? value);
-
-            if(Nullable.GetUnderlyingType(prop.PropertyType) != null && value == null)
-                continue;
-
-            if ( prop.IsGenericTypeOf(typeof(SqlSerial<>)) )
-            {
-                var serialValue = Activator.CreateInstance(prop.PropertyType) 
-                    ?? throw new NullReferenceException($"!!serialValue is null at GetResult propertyInfo: {prop}!!");
-
-                PropertyInfo sqlSerialKey = serialValue.GetType().GetProperty("Key")
-                    ?? throw new NullReferenceException($"!!serialValue is does not have property Key at GetResult propertyInfo: {prop}!!");
-
-                sqlSerialKey.SetValue(serialValue, value);
-                prop.SetValue(obj, serialValue);
-                continue;
-            }
-
-            prop.SetValue(obj, value);
-        }
-
-        return obj;
-    }
-
-    private void ResetSqlCommand()
-    {
-        SQLCommand.CommandText = "";
-        SQLCommand.Parameters.Clear();
-    }
-    private static string NameToPropertyName(string propName)
-    {
-        return char.ToUpper(propName[0]) + propName[1..];
-    }
-
-    private static string PropertyToName(PropertyInfo prop)
-    {
-        return char.ToLower(prop.Name[0]) + prop.Name[1..];
-    }
-
-    private static PropertyInfo[] GetProperties(Type type)
-    {
-        return type.GetProperties();
-    }
-
-    private static string GetTableName(Type type)
-    {
-        string className = type.Name;
-        return char.ToLower(className[0]) + className[1..];
+        ORM_Iterable<T> iterator = new(GetConnection);
+        iterator.Query.Append($"SELECT COUNT(*) FROM {tableName}\n");
+        return iterator;
     }
 }
 

@@ -1,31 +1,35 @@
 ﻿using Microsoft.Data.SqlClient;
+using MySql.Data.MySqlClient;
+using Mysqlx.Datatypes;
+using MySqlX.XDevAPI.Common;
+using Npgsql;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlTypes;
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 
 namespace WebApplication1.data.ORM;
 
+using ParameterList = LinkedList<(string parameter, object? value)>;
+
 public static class MyExtensions
 {
-    public static void Append(this IDbCommand cmd, string sqlLine)
+    public static void SetQuery(this IDbCommand cmd, StringBuilder Query)
     {
-        cmd.CommandText += sqlLine;
+        cmd.CommandText = Query.ToString();
     }
 
-    public static void AddParameter(this IDbCommand cmd, object value)
+    public static string AddParameter(this ParameterList parameters, object? value)
     {
-        IDbDataParameter parameter = cmd.CreateParameter();
+        int index = parameters.Count + 1;
+        string parameterName = $"@parameter{index}";
 
-        int index = cmd.Parameters.Count + 1;
-        parameter.ParameterName = $"@parameter{index}";
-        parameter.Value = value;
-
-        cmd.Append(parameter.ParameterName);
-        cmd.Parameters.Add(parameter);
+        parameters.AddLast((parameterName, value));
+        return parameterName;
     }
 
     public static async Task<T?> AsyncFirstOrDefault<T>(this Task<LinkedList<T>> listTask)
@@ -38,85 +42,105 @@ public static class MyExtensions
 
 public class ORM_Iterable<T> where T : ORM_Table, new()
 {
-    public DbConnection Connection { get; set; }
-    public DbCommand SqlCommand { get; set; }
+    public Func<DbConnection> GetConnection { get; set; }
+    public StringBuilder Query { get; set; } = new();
+    public ParameterList Parameters { get; set; } = new();
 
-    public ORM_Iterable(DbConnection connection, DbCommand command)
+    public ORM_Iterable(Func<DbConnection> getConnection)
     {
-        Connection = connection;
-        SqlCommand = command;
+        GetConnection = getConnection;
     }
 
     public ORM_Iterable<T> Where(Expression<Func<T, bool>> lambda)
     {
-        if(SqlCommand.CommandText.Contains("WHERE"))
-            SqlCommand.Append("AND ");
+        if(Query.ToString().Contains("WHERE"))
+            Query.Append("AND ");
         else
-            SqlCommand.Append("WHERE ");
+            Query.Append("WHERE ");
 
         BuildWhereClause(lambda.Body);
-        SqlCommand.Append("\n");
+        Query.Append('\n');
         return this;
     }
 
     public async Task<LinkedList<T>> GetResult()
     {
-        Console.WriteLine(SqlCommand.CommandText);
-
-        LinkedList<T> result;
-
-            if(Connection.State != ConnectionState.Open)
-                await Connection.OpenAsync();
-
-            using IDataReader reader = await SqlCommand.ExecuteReaderAsync();
-            if (reader == null)
+        Console.WriteLine(Query.ToString());
+        
+        return await GenericExecute<T, LinkedList<T>>
+        (
+            async (command) =>
             {
-                Connection.Close();
-                return [];
+                using IDataReader reader = await command.ExecuteReaderAsync();
+
+                if (reader == null)
+                    return [];
+
+                return await GetAllResult(reader);
             }
-
-            result = await TK_ORM.GetAllResult<T>(reader);
-
-        return result;
+        );
     }
 
     public async Task<long> GetAfflictedCount()
     {
-        Console.WriteLine(SqlCommand.CommandText);
+        Console.WriteLine(Query.ToString());
 
-        object? affectedRows;
-
-            if (Connection.State != ConnectionState.Open)
-                await Connection.OpenAsync();
-            
-            affectedRows = await SqlCommand.ExecuteScalarAsync();
-
-        return Convert.ToInt64(affectedRows ?? 0);
+        return await GenericExecute<T, long>
+        (
+            async (command) => 
+            { 
+                return Convert.ToInt64(await command.ExecuteScalarAsync() ?? 0); 
+            }
+        );
     }
 
     public async Task<int> Execute()
     {
-        Console.WriteLine(SqlCommand.CommandText);
+        Console.WriteLine(Query.ToString());
 
-        int result;
-
-            if (Connection.State != ConnectionState.Open)
-                await Connection.OpenAsync();
-
-            result = await SqlCommand.ExecuteNonQueryAsync();
-
-        return result;
+        return await GenericExecute<T, int>
+        (
+            async (command) =>
+            {
+                return await command.ExecuteNonQueryAsync();
+            }
+        );
     }
 
     public async Task<LinkedList<T>> GetResultAndPrint()
     {
-        Console.WriteLine(SqlCommand.CommandText);
+        Console.WriteLine(Query.ToString());
 
         LinkedList<T> list = await GetResult();
         foreach (T item in list)
             item.Print();
 
         return list;
+    }
+
+    private async Task<R> GenericExecute<V, R>(Func<DbCommand, Task<R>> sqlGenericExecute) where V : ORM_Table, new()
+    {
+        R result;
+
+        using DbConnection dbConnection = GetConnection();
+        using (DbCommand dbCommand = dbConnection.CreateCommand())
+        {
+
+            dbCommand.SetQuery(Query);
+            dbCommand.AddParameters(Parameters);
+
+            await dbConnection.OpenAsync();
+
+            try
+            {
+                result = await sqlGenericExecute(dbCommand);
+            }
+            finally
+            {
+                await dbConnection.CloseAsync();
+            }
+        }
+        return result;
     }
 
     private void BuildWhereClause(Expression expression)
@@ -128,13 +152,7 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
         {
             string columnName = leftMember.Member.Name;
 
-            var prop = (PropertyInfo)leftMember.Member;
-            if (prop.PropertyType == typeof(DateTime))
-            {
-                columnName = columnName;
-            }
-
-            SqlCommand.Append(columnName);
+            Query.Append(columnName);
         }
         else if (body.Left is BinaryExpression leftCompare)
         {
@@ -146,7 +164,7 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
         }
 
         string comparisonOperator = GetComparisonOperator(expression.NodeType);
-        SqlCommand.Append($" {comparisonOperator} ");
+        Query.Append($" {comparisonOperator} ");
 
         if (body.Right is MemberExpression rightMember)
         {
@@ -157,22 +175,26 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
 
             if (type == typeof(DateTime))
             {
-                SqlCommand.AddParameter(DateTime.Parse(value?.ToString() ?? ""));
+                string paramStr = Parameters.AddParameter(DateTime.Parse(value?.ToString() ?? ""));
+                Query.Append(paramStr);
             }
             else if(type == typeof(string))
             {
-                SqlCommand.AddParameter(value?.ToString() ?? "");
+                string paramStr = Parameters.AddParameter(value?.ToString() ?? "");
+                Query.Append(paramStr);
             }
             else
             {
-                SqlCommand.AddParameter(value ?? Expression.Default(type));
+                string paramStr = Parameters.AddParameter(value ?? Expression.Default(type));
+                Query.Append(paramStr);
             }
         }
         else if (body.Right is ConstantExpression rightConst)
         {
             object value = rightConst?.Value ?? Expression.Default(rightConst?.Type!);
 
-            SqlCommand.AddParameter(value);
+            string paramStr = Parameters.AddParameter(value);
+            Query.Append(paramStr);
         }
         else if (body.Right is BinaryExpression rightCompare)
         {
@@ -233,6 +255,65 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
         {
             throw new NotSupportedException("Only constant values and property values are supported for comparison.");
         }
+    }
+
+    private static async Task<LinkedList<T>> GetAllResult(IDataReader reader)
+    {
+        LinkedList<T> result = [];
+
+        while (await reader.ReadAsync())
+        {
+            Dictionary<string, object?> row = [];
+
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                string columnName = reader.GetName(i).ToLower(culture: CultureInfo.InvariantCulture);
+                object rowValue = reader.GetValue(i);
+                row.Add(columnName, rowValue);
+            }
+
+            T value = GetResult(row);
+
+            if (value == null)
+                continue;
+
+            result.AddLast(value);
+        }
+
+        return result;
+    }
+
+    private static T GetResult(Dictionary<string, object?> row)
+    {
+        T obj = new();
+
+        PropertyInfo[] props = typeof(T).GetProperties();
+
+        foreach (PropertyInfo prop in props)
+        {
+            string dbName = prop.Name.ToLower(culture: CultureInfo.InvariantCulture);
+            row.TryGetValue(dbName, out object? value);
+
+            if (Nullable.GetUnderlyingType(prop.PropertyType) != null && value == null)
+                continue;
+
+            if (prop.IsGenericTypeOf(typeof(SqlSerial<>)))
+            {
+                var serialValue = Activator.CreateInstance(prop.PropertyType)
+                    ?? throw new NullReferenceException($"!!serialValue is null at GetResult propertyInfo: {prop}!!");
+
+                PropertyInfo sqlSerialKey = serialValue.GetType().GetProperty("Key")
+                    ?? throw new NullReferenceException($"!!serialValue is does not have property Key at GetResult propertyInfo: {prop}!!");
+
+                sqlSerialKey.SetValue(serialValue, value);
+                prop.SetValue(obj, serialValue);
+                continue;
+            }
+
+            prop.SetValue(obj, value);
+        }
+
+        return obj;
     }
 }
 

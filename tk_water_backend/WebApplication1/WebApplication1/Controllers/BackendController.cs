@@ -66,7 +66,10 @@ namespace WebApplication1.Controllers
     public class BackendController : ControllerBase
     {
         private readonly ILogger<BackendController> _logger;
-        private static readonly TK_ORM dataBase = new(new NpgsqlConnection("host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;"));
+        
+        private static readonly string connectionString = "host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;";
+        
+        private TK_ORM DataBase = new(() => { return new NpgsqlConnection(connectionString); });
 
         public BackendController(ILogger<BackendController> logger)
         {
@@ -82,10 +85,11 @@ namespace WebApplication1.Controllers
         [HttpPost("receiveAllUnitsData")]
         public async Task<ActionResult> ReceiveUnitDataAsync(ReceiveAllUnitsDataRequestBody request)
         {
+
             LinkedList<UnitData> unitsData;
             try
             {
-                unitsData = await dataBase.Select<UnitData>()
+                unitsData = await DataBase.Select<UnitData>()
                                           .Where(unitData => unitData.UserID == request.UserID)
                                           .GetResult();
             }
@@ -105,7 +109,7 @@ namespace WebApplication1.Controllers
         {
             try
             {
-                UnitData? unit = await dataBase.Select<UnitData>()
+                UnitData? unit = await DataBase.Select<UnitData>()
                                                  .Where(unitData => unitData.UnitID == request.Unit.UnitID)
                                                  .GetResult()
                                                  .AsyncFirstOrDefault();
@@ -117,9 +121,9 @@ namespace WebApplication1.Controllers
                 unit.MoistureThreshold  = request.Unit.MoistureThreshold;
                 unit.UserID             = request.Unit.UserID;
 
-                long count = await dataBase.Update(unit)
-                                             .Where(unit => unit.UnitID == request.Unit.UnitID)
-                                             .Execute();
+                long count = await DataBase.Update(unit)
+                                           .Where(unit => unit.UnitID == request.Unit.UnitID)
+                                           .Execute();
 
                 if (count <= 0)
                     return BadRequest(new FailedResponseBody() { Message = "!!update failed unit doesn't exist!!" });
@@ -135,15 +139,14 @@ namespace WebApplication1.Controllers
         [HttpPost("addUnitData")]
         public async Task<ActionResult> AddUnitData(AddUnitDataRequestBody request)
         {
-            UnitData? addUnit;
-
-            try 
+            UnitData? addUnit; 
+            try
             { 
-                long unitsCount = await dataBase.Count<UnitData>()
+                long unitsCount = await DataBase.Count<UnitData>()
                                                   .Where(unitData => unitData.UserID == request.UserID)
                                                   .GetAfflictedCount();
 
-                addUnit = await dataBase.Select<UnitData>()
+                addUnit = await DataBase.Select<UnitData>()
                                           .Where(unitData => unitData.UnitID == request.UnitID)
                                           .GetResult()
                                           .AsyncFirstOrDefault();
@@ -153,7 +156,7 @@ namespace WebApplication1.Controllers
 
                 addUnit.UserID = request.UserID;
 
-                long count = await dataBase.Update(addUnit)
+                long count = await DataBase.Update(addUnit)
                                              .Where(unitData => unitData.UnitID == request.UnitID)
                                              .Execute();
 
@@ -174,7 +177,7 @@ namespace WebApplication1.Controllers
             try
             {
 
-                UnitData? unit = await dataBase.Select<UnitData>()
+                UnitData? unit = await DataBase.Select<UnitData>()
                                                  .Where(unitData => unitData.UnitID == request.Unit.UnitID)
                                                  .GetResult()
                                                  .AsyncFirstOrDefault();
@@ -183,7 +186,7 @@ namespace WebApplication1.Controllers
                     return BadRequest(new FailedResponseBody() { Message = "!!update failed unit doesn't exist!!" });
 
                 unit.UserID = 0;
-                await dataBase.Update(unit)
+                await DataBase.Update(unit)
                                 .Where(unitData => unitData.UnitID == request.Unit.UnitID)
                                 .Execute();
             }
@@ -201,7 +204,7 @@ namespace WebApplication1.Controllers
             LinkedList<UnitData> unitsData;
             try
             {
-                unitsData = await dataBase.Select<UnitData>()
+                unitsData = await DataBase.Select<UnitData>()
                                           .Where(unitData => unitData.UserID == 0)
                                           .GetResult();
             }
@@ -218,11 +221,15 @@ namespace WebApplication1.Controllers
         {
             try
             {
-                long count = await dataBase.Remove<UnitData>()
-                                             .Where(unit => unit.UserID == 0 && unit.UnitID == request.UnitID)
-                                             .Execute();
+                long count = await DataBase.Remove<UnitData>()
+                                           .Where(unit => unit.UserID == 0 && unit.UnitID == request.UnitID)
+                                           .Execute();
                 if(count <= 0) 
                     return BadRequest(new FailedResponseBody() { Message = "!!unit to be removed not found in database!!" });
+
+                await DataBase.Remove<UnitHistory>()
+                              .Where(unit => unit.UnitID == request.UnitID)
+                              .Execute();
             }
             catch (NpgsqlException ex)
             {
@@ -245,7 +252,7 @@ namespace WebApplication1.Controllers
             LinkedList<UnitHistory> history;
             try
             {
-                history = await dataBase.Select<UnitHistory>()
+                history = await DataBase.Select<UnitHistory>()
                                         .Where(unit => unit.UnitID == request.UnitID)
                                         .Where(unit => unit.Timestamp >= timeBegin && unit.Timestamp <= timeEnd)
                                         .GetResult();

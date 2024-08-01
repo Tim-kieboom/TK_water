@@ -4,9 +4,21 @@ using WebApplication1.data.ORM;
 
 try
 {
-    var database = new TK_ORM(new NpgsqlConnection("host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;"));
+    string connectionString = "host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;";
+    var database = new TK_ORM(() => { return new NpgsqlConnection(connectionString); });
+
     string sqlCreateTablesIfNotExist = File.ReadAllText(@"dataBaseTabels.txt");
     await database.ExecuteSqlQuery(sqlCreateTablesIfNotExist);
+
+    //DateTime now = DateTime.Parse("07/30/2024 00:00:00");
+    //Random ran = new();
+    //for(int i = 0; i < 100000; i++)
+    //{
+    //    UnitData unit = new(1, "string", "", (short)ran.Next(0,100), (short)ran.Next(0, 100));
+    //    UnitHistory history = new (unit, now);
+    //    now = now.AddMinutes(10);
+    //}
+
 }
 catch (Exception ex)
 {
