@@ -10,6 +10,7 @@ using WebApplication1.Controllers.backendBodys.UpdateUnit;
 using WebApplication1.Controllers.genericBodys;
 using WebApplication1.data;
 using WebApplication1.data.ORM;
+using TimeSpan = System.TimeSpan;
 
 namespace WebApplication1.Controllers
 {
@@ -20,8 +21,7 @@ namespace WebApplication1.Controllers
             return source.Select(group =>
             {
                 UnitHistory history     = group.First();
-                UnitHistory lastHistory = group.Last();
-                DateTime timeStamp      = GetAverageDateTime(history.Timestamp, lastHistory.Timestamp);
+                DateTime timeStamp      = history.Timestamp;
 
                 history.MoistureLevel       = (short)group.Average(unit => unit.MoistureLevel);
                 history.MoistureThreshold   = (short)group.Average(unit => unit.MoistureThreshold);
@@ -46,7 +46,7 @@ namespace WebApplication1.Controllers
                     return source.GroupBy(unit => unit.Timestamp.Hour);
 
                 case TimeStateEnum.TenMinutes:
-                    return source.GroupBy(unit => unit.Timestamp.Minute);
+                    return source.GroupBy(unit => unit.Timestamp.Minute - (unit.Timestamp.Minute % 10));
 
                 default:
                     break;
@@ -221,15 +221,16 @@ namespace WebApplication1.Controllers
         {
             try
             {
+                await DataBase.Remove<UnitHistory>()
+                              .Where(unit => unit.UnitID == request.UnitID)
+                              .Execute();
+
                 long count = await DataBase.Remove<UnitData>()
                                            .Where(unit => unit.UserID == 0 && unit.UnitID == request.UnitID)
                                            .Execute();
                 if(count <= 0) 
                     return BadRequest(new FailedResponseBody() { Message = "!!unit to be removed not found in database!!" });
 
-                await DataBase.Remove<UnitHistory>()
-                              .Where(unit => unit.UnitID == request.UnitID)
-                              .Execute();
             }
             catch (NpgsqlException ex)
             {

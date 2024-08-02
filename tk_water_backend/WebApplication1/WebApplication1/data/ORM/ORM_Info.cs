@@ -3,12 +3,6 @@ using System.Text;
 
 namespace WebApplication1.data.ORM
 {
-    public class SqlVarChar(int size, string valueName)
-    {
-        public int Size { get; set; } = size;
-        public string ValueName { get; set; } = valueName;
-    }
-
     public class SqlSerial<T>
     {
         public T? Key { get; set; }
