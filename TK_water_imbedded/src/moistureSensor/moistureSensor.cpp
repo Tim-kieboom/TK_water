@@ -1,20 +1,18 @@
 #include "moistureSensor.h"
 
-#define ANALOG_TO_PERCENT(x) (double)((double)x / ((double)100.0/1023))
-
-MoistureSensor::MoistureSensor(uint8_t pin) 
+MoistureSensor::MoistureSensor(uint8_t pin, uint8_t ADC_BitSize/*default = 12*/)
+  : pin(pin), maxValue(((1 << ADC_BitSize) - 1))
 {
-  this->pin = pin;
   pinMode(pin, INPUT);
 }
 
-float MoistureSensor::getAverageReading()
+uint8_t MoistureSensor::getAverageReading(uint8_t measureAmount/*default = 20*/)
 {
-  const static uint8_t measureAmount = 20;
+  uint16_t soilMoistureValue = analogRead(pin);
 
-  uint64_t soilMoistureValue = 0;
-  for(uint8_t i = 0; i < measureAmount; i++)
-    soilMoistureValue =+ analogRead(pin);
+  for(uint8_t i = 0; i < measureAmount-1; i++)
+    soilMoistureValue = (soilMoistureValue + analogRead(pin)) / 2;
+  
+  return map(soilMoistureValue, 0, maxValue, 100, 0);
 
-  return ANALOG_TO_PERCENT(soilMoistureValue)/(double)measureAmount;
 }
