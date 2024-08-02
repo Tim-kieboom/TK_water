@@ -6,11 +6,12 @@
 class MoistureSensor
 {
 private:
-    uint8_t pin;
+    const uint8_t pin;
+    const uint16_t maxValue;
 
 public:
-    MoistureSensor(uint8_t pin);
-    float getAverageReading();
+    MoistureSensor(uint8_t pin, uint8_t ADC_bitSize = 12);
+    uint8_t getAverageReading(uint8_t measureAmount = 20);
 };
 
 

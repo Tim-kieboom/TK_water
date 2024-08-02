@@ -10,7 +10,7 @@
 #include "Secret.h"
 #include <WiFi.h>
 
-#define MOISTURE_SENSOR_1 A4
+#define MOISTURE_SENSOR_1 A3
 #define WATER_PUMP_1 32
 #define BUTTON_OPEN_INIT_SERVER 15
 
@@ -132,6 +132,7 @@ void sendData(uint8_t moistureLevel)
     httpConfig, 
     /*out*/wifiState
   );
+  setThreshold(response);
 
   Serial.println("[post(postUnitMeasurement)] response: " + String(response) + "\n");
 
@@ -175,10 +176,11 @@ void loop()
 
   if(dataTimer.waitTime(10))
   {
-    uint8_t moistureLevel = random(0,100);//waterSensor.getAverageReading();
+    uint8_t moistureLevel = waterSensor.getAverageReading();
     if(moistureLevel > wateringThreshold)
       pumpWater = true;
 
+    Serial.println("moistureLevel: " + String(moistureLevel));
     Serial.println("wateringThreshold: " + String(wateringThreshold));
 
     if(hasWifi(wifiState))
@@ -193,3 +195,4 @@ void loop()
 
   setLedToState();
 }
+
