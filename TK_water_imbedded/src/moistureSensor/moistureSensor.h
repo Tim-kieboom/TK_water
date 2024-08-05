@@ -11,7 +11,9 @@ private:
 
 public:
     MoistureSensor(uint8_t pin, uint8_t ADC_bitSize = 12);
-    uint8_t getAverageReading(uint8_t measureAmount = 20);
+    double getAveragePercentage(uint8_t measureAmount = 20);
+    bool getAveragePercentage_forked(double &percentage, uint8_t measureAmount/*default = 20*/);
+
 };
 
 
