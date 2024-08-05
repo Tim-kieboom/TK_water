@@ -1,11 +1,15 @@
+using Microsoft.Extensions.FileProviders;
 using Npgsql;
+using System.Data.Common;
 using WebApplication1.data;
 using WebApplication1.data.ORM;
 
 try
 {
     string connectionString = "host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;";
-    var database = new TK_ORM(() => { return new NpgsqlConnection(connectionString); });
+    Func<DbConnection> postgressConnection = () => { return new NpgsqlConnection(connectionString); };
+
+    var database = new TK_ORM(postgressConnection);
 
     string sqlCreateTablesIfNotExist = File.ReadAllText(@"dataBaseTabels.txt");
     await database.ExecuteSqlQuery(sqlCreateTablesIfNotExist);
@@ -48,6 +52,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+           Path.Combine(builder.Environment.ContentRootPath, "WebContent")),
+    RequestPath = ""
+});
 
 
 // Configure the HTTP request pipeline.

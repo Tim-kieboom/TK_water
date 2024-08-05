@@ -5,6 +5,7 @@ using WebApplication1.Controllers.controlCentrumBodys.registerUnit;
 using WebApplication1.Controllers.controlCentrumBodys.postUnitMeasurement;
 using WebApplication1.Controllers.controlCentrumBodys.signIn;
 using Npgsql;
+using System.Data.Common;
 
 namespace WebApplication1.Controllers
 {
@@ -14,7 +15,9 @@ namespace WebApplication1.Controllers
     {
         private readonly ILogger<BackendController> _logger;
         private static readonly string connectionString = "host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;";
-        private TK_ORM DataBase = new(() => { return new NpgsqlConnection(connectionString); } );
+        private static readonly Func<DbConnection> postgressConnection = () => { return new NpgsqlConnection(connectionString); };
+
+        private TK_ORM DataBase = new(postgressConnection);
 
         public ControlCentrumController(ILogger<BackendController> logger)
         {
@@ -33,7 +36,7 @@ namespace WebApplication1.Controllers
                 if (unitCount > 0)
                     return Ok("success");
 
-                UnitData unit = new(0, request.UnitID, "unitName", 70, 0);
+                UnitData unit = new(0, request.UnitID, "unitName", 60, 0);
 
                 bool success = await DataBase.Insert(unit);
                 if (!success)

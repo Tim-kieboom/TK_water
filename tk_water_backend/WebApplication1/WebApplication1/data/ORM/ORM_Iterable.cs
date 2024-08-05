@@ -297,7 +297,7 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
             if (Nullable.GetUnderlyingType(prop.PropertyType) != null && value == null)
                 continue;
 
-            if (prop.IsGenericTypeOf(typeof(SqlSerial<>)))
+            if (TK_ORM.IsSerial(prop))
             {
                 var serialValue = Activator.CreateInstance(prop.PropertyType)
                     ?? throw new NullReferenceException($"!!serialValue is null at GetResult propertyInfo: {prop}!!");

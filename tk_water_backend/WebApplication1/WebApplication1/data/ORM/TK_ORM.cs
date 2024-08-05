@@ -1,7 +1,9 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.FileSystemGlobbing.Internal;
 using MySqlX.XDevAPI.Common;
+using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Asn1.X509.Qualified;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
@@ -88,9 +90,9 @@ public class TK_ORM
 
         foreach ((PropertyInfo prop, int index) in props.Select((value, index) => (value, index)))
         {
-            if(prop.IsGenericTypeOf(typeof(SqlSerial<>)) && prop.GetValue(row) == null)
-                    continue;
-
+            if (IsSerial(prop))
+                continue;
+            
             string value = prop.GetValue(row)?.ToString() ?? "null";
             valueNames.Append(prop.Name);
 
@@ -221,6 +223,12 @@ public class TK_ORM
         ORM_Iterable<T> iterator = new(GetConnection);
         iterator.Query.Append($"SELECT COUNT(*) FROM {tableName}\n");
         return iterator;
+    }
+
+    public static bool IsSerial(PropertyInfo prop)
+    {
+        SQLSpecialTypeAttribute? attribute = prop.GetCustomAttribute<SQLSpecialTypeAttribute>();
+        return attribute != null && attribute.SqlType == SQLSpecialTypes.Serial;
     }
 }
 

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
+using System.Data.Common;
 using WebApplication1.Controllers.backendBodys.addUnitData;
 using WebApplication1.Controllers.backendBodys.getAvailableUnits;
 using WebApplication1.Controllers.backendBodys.receiveAllUnitsData;
@@ -68,8 +69,9 @@ namespace WebApplication1.Controllers
         private readonly ILogger<BackendController> _logger;
         
         private static readonly string connectionString = "host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;";
-        
-        private TK_ORM DataBase = new(() => { return new NpgsqlConnection(connectionString); });
+        private static readonly Func<DbConnection> postgressConnection = () => { return new NpgsqlConnection(connectionString); };
+
+        private TK_ORM DataBase = new(postgressConnection);
 
         public BackendController(ILogger<BackendController> logger)
         {
