@@ -1,17 +1,16 @@
-using Microsoft.AspNetCore.Mvc;
-using Npgsql;
-using System.Data.Common;
-using WebApplication1.Controllers.backendBodys.addUnitData;
-using WebApplication1.Controllers.backendBodys.getAvailableUnits;
-using WebApplication1.Controllers.backendBodys.receiveAllUnitsData;
 using WebApplication1.Controllers.backendBodys.RemoveAvailebleUnits;
+using WebApplication1.Controllers.backendBodys.receiveAllUnitsData;
+using WebApplication1.Controllers.backendBodys.getAvailableUnits;
 using WebApplication1.Controllers.backendBodys.removeUnitData;
+using WebApplication1.Controllers.backendBodys.addUnitData;
 using WebApplication1.Controllers.backendBodys.UnitHistory;
 using WebApplication1.Controllers.backendBodys.UpdateUnit;
 using WebApplication1.Controllers.genericBodys;
-using WebApplication1.data;
+using Microsoft.AspNetCore.Mvc;
 using WebApplication1.data.ORM;
-using TimeSpan = System.TimeSpan;
+using WebApplication1.data;
+using System.Data.Common;
+using Npgsql;
 
 namespace WebApplication1.Controllers
 {
@@ -67,21 +66,43 @@ namespace WebApplication1.Controllers
     public class BackendController : ControllerBase
     {
         private readonly ILogger<BackendController> _logger;
-        
+
         private static readonly string connectionString = "host=postgres;port=5432;Database=WaterUnitData;Username=tkWaterUser;Password=waterUnitPassowrd;SSL mode=prefer;Pooling=true;MinPoolSize=1;MaxPoolSize=100;";
         private static readonly Func<DbConnection> postgressConnection = () => { return new NpgsqlConnection(connectionString); };
 
-        private TK_ORM DataBase = new(postgressConnection);
+        private readonly TK_ORM DataBase = new(postgressConnection);
+        private readonly MqttHandler mqtt;
 
-        public BackendController(ILogger<BackendController> logger)
+        public BackendController(ILogger<BackendController> logger, MqttHandler mqtt)
         {
             _logger = logger;
+            this.mqtt = mqtt;
         }
 
         [HttpPost("test")]
-        public ActionResult Test() 
+        public ActionResult Test()
         {
             return Ok(new SuccessResponseBody());
+        }
+
+        [HttpPost("manualCheck")]
+        public async Task<ActionResult> ManualCheck(UnitIDBody request)
+        {
+            if (await mqtt.Publish($"unit/{request.UnitID}/checkManual", "true"))
+                return Ok(new SuccessResponseBody());
+
+            return BadRequest(new FailedResponseBody() { Message = "couldn't connect to mqtt server" });
+        }
+
+        [HttpPost("logs")]
+        public ActionResult Logs(UnitIDBody request)
+        {
+            MqttHandler.UnitLogs.TryGetValue(request.UnitID, out var logs);
+
+            if (logs == null)
+                return BadRequest(new FailedResponseBody() { Message = "logs are empty" });
+        
+            return Ok(new SuccessResponseBody() { Message = logs.ToString()});
         }
 
         [HttpPost("receiveAllUnitsData")]
@@ -277,14 +298,12 @@ namespace WebApplication1.Controllers
         private static IEnumerable<UnitHistory> GetTimeGrouping(LinkedList<UnitHistory> history, TimeStateEnum timeState) 
         {
             var sameMonthGroups = history.GroupBy(unit => (unit.Timestamp.Year, unit.Timestamp.Month).GetHashCode());
-            var sameDayGroups = history.GroupBy(unit => (unit.Timestamp.Year, unit.Timestamp.Month, unit.Timestamp.Day).GetHashCode());
-            var sameHourGroups = history.GroupBy(unit => (unit.Timestamp.Year, unit.Timestamp.Month, unit.Timestamp.Day, unit.Timestamp.Hour).GetHashCode());
+            var sameDayGroups   = history.GroupBy(unit => (unit.Timestamp.Year, unit.Timestamp.Month, unit.Timestamp.Day).GetHashCode());
+            var sameHourGroups  = history.GroupBy(unit => (unit.Timestamp.Year, unit.Timestamp.Month, unit.Timestamp.Day, unit.Timestamp.Hour).GetHashCode());
 
             if (timeState == TimeStateEnum.days)
                 return sameMonthGroups.Select(group => group.GroupTime(TimeStateEnum.days).GetAverageUnitHistory())          
                                       .Flatten();
-
-            var foo = history.GroupBy(unit => unit.Timestamp.Hour).ToArray();
 
             if (timeState == TimeStateEnum.hours)
                 return sameDayGroups.Select(group => group.GroupTime(TimeStateEnum.hours).GetAverageUnitHistory())

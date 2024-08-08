@@ -297,19 +297,6 @@ public class ORM_Iterable<T> where T : ORM_Table, new()
             if (Nullable.GetUnderlyingType(prop.PropertyType) != null && value == null)
                 continue;
 
-            if (TK_ORM.IsSerial(prop))
-            {
-                var serialValue = Activator.CreateInstance(prop.PropertyType)
-                    ?? throw new NullReferenceException($"!!serialValue is null at GetResult propertyInfo: {prop}!!");
-
-                PropertyInfo sqlSerialKey = serialValue.GetType().GetProperty("Key")
-                    ?? throw new NullReferenceException($"!!serialValue is does not have property Key at GetResult propertyInfo: {prop}!!");
-
-                sqlSerialKey.SetValue(serialValue, value);
-                prop.SetValue(obj, serialValue);
-                continue;
-            }
-
             prop.SetValue(obj, value);
         }
 

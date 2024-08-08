@@ -21,7 +21,15 @@ services:
       context: .
       dockerfile: WebApplication1/Dockerfile
 
-  # ui-webserver:
-  #   container_name: ui-webserver
-  #   build: ./tk_water_ui/tk_water_ui
-  #   ports: [80:80]
+  mosquitto:
+    image: eclipse-mosquitto
+    hostname: mosquitto
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "9800:8800" 
+      - "9801:8801"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:rw
+      - ./mosquitto/data:/mosquitto/data:rw
+      - ./mosquitto/log:/mosquitto/log:rw

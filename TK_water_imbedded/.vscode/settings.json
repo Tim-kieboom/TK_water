@@ -63,6 +63,7 @@
         "CHECKOVERFLOW",
         "EEPROMDATA",
         "INITSERVER",
+        "ISERIAL",
         "STRINGTOOLS",
         "UNITCLIENT",
         "WATERPUMP"

@@ -1,0 +1,18 @@
+{
+  "host": "mosquitto",
+  "port": 8800,
+  "username": "TK_water_backend",
+  "password": "password",
+
+  "subscribe_topics": [
+    "unit/#"
+  ],
+
+  "publish_topics": [
+    {
+      "topic": "backend/online",
+      "message": "1"
+    }
+  ]
+}
+ 

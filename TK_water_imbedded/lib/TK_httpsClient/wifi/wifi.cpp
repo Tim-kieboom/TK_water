@@ -2,7 +2,7 @@
 #include <WiFi.h>
 #include "wifi.h"
 
-bool hasWifi(WifiState &wifiState)
+bool hasWifi(WifiState wifiState)
 {
   return (wifiState != notFound && wifiState != hotspot && wifiState != notConnected);
 }

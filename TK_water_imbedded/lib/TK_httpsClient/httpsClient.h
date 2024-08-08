@@ -30,16 +30,48 @@ struct httpsRequest_config
     ~httpsRequest_config();
 };
 
-//if you leave the certificate empty in the config, the connection will be setInsecure(RECOMMENDED FOR TESTING ONLY!!)
+/*
+if you leave the certificate empty in the config, the connection will be setInsecure(RECOMMENDED FOR TESTING ONLY!!)
+
+return: 
+- wifistate = connected           - if request was successful
+- wifistate = notConnected        - if wifi is not connected
+- wifistate = serverNotFound      - if you cant connected to the server or the serverURL in the config is empty
+- wifistate = serverRequestFailed - if responseCode is not success
+*/
 const char* httpsPost(const char* path, const char* jsonPayload, httpsRequest_config* config, /*out*/WifiState &wifiState);
 
-//if you leave the certificate empty in the config, the connection will be setInsecure(RECOMMENDED FOR TESTING ONLY!!)
+/*
+if you leave the certificate empty in the config, the connection will be setInsecure(RECOMMENDED FOR TESTING ONLY!!)
+
+return: 
+- wifistate = connected           - if request was successful
+- wifistate = notConnected        - if wifi is not connected
+- wifistate = serverNotFound      - if you cant connected to the server or the serverURL in the config is empty
+- wifistate = serverRequestFailed - if responseCode is not success
+*/
 const char* httpsPost(const char* path, String jsonPayload, httpsRequest_config* config, /*out*/WifiState &wifiState);
 
-//if you leave the certificate empty in the config, the connection will be setInsecure(RECOMMENDED FOR TESTING ONLY!!)
+/*
+if you leave the certificate empty in the config, the connection will be setInsecure(RECOMMENDED FOR TESTING ONLY!!)
+
+return: 
+- wifistate = connected           - if request was successful
+- wifistate = notConnected        - if wifi is not connected
+- wifistate = serverNotFound      - if you cant connected to the server or the serverURL in the config is empty
+- wifistate = serverRequestFailed - if responseCode is not success
+*/
 const char* httpsGet(const char* path, httpsRequest_config* config, /*out*/WifiState &wifiState);
 
-//if you leave the certificate empty in the config, the connection will be setInsecure(RECOMMENDED FOR TESTING ONLY!!)=
+/*
+if you leave the certificate empty in the config, the connection will be setInsecure(RECOMMENDED FOR TESTING ONLY!!)
+
+return: 
+- wifistate = connected           - if request was successful
+- wifistate = notConnected        - if wifi is not connected
+- wifistate = serverNotFound      - if you cant connected to the server or the serverURL in the config is empty
+- wifistate = serverRequestFailed - if responseCode is not success
+*/
 const char* httpsRequest(const char* serverURL, const char* path, /*out*/WifiState &wifiState, Certificates* certificate, const char* jsonPayload = nullptr);
 
 #endif
