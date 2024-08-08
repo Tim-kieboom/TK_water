@@ -41,7 +41,7 @@ size_t TK_Serial::print(T val)
     size_t size = Serial.print(String(val));
 
     if(mqtt != nullptr && logTopic != nullptr && mqtt->isConnected())
-        mqtt->publish(logTopic, (String(val) + "\n").c_str());
+        mqtt->publish(logTopic, (String(val)).c_str());
 
     return size;
 }
@@ -52,7 +52,7 @@ size_t TK_Serial::println(T val)
     size_t size = Serial.println(String(val));
 
     if(mqtt != nullptr && logTopic != nullptr && mqtt->isConnected())
-        mqtt->publish(logTopic, (String(val) + "\n").c_str());
+        mqtt->publish(logTopic, (String(val)).c_str());
 
     return size;
 }

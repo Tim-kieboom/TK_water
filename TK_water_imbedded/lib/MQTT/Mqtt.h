@@ -44,7 +44,7 @@ public:
     bool publish(String topic, const char *payload);
 
     PubSubClient *getClient();
-    const char* getTimeNow();
+    const char* getUTCTimeNow();
 
 private:
     void setupWifi();

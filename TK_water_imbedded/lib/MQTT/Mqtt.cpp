@@ -171,20 +171,31 @@ PubSubClient *Mqtt::getClient()
     return client;
 }
 
-const char* Mqtt::getTimeNow()
+const char* Mqtt::getUTCTimeNow()
 {
-  tm timeInfo;
-  if(!getLocalTime(&timeInfo))
-  {
-    Serial.println("Failed to obtain time");
-    return "";
-  }
+    tm timeInfo;
+    if(!getLocalTime(&timeInfo))
+    {
+        Serial.println("Failed to obtain time");
+        return "";
+    }
 
-  char buffer[50];
-  uint8_t bufferSize = sizeof(buffer);
-  strftime(buffer, bufferSize, "%A, %B %d %Y %H:%M:%S", &timeInfo);
+    String year    = String(timeInfo.tm_year + 1900);
+    String month   = String(timeInfo.tm_mon+1);
+    String day     = String(timeInfo.tm_mday);
+    String hour    = String(timeInfo.tm_hour);
+    String minute  = String(timeInfo.tm_min);
+    String second  = String(timeInfo.tm_sec);
 
-  char* time = new char[bufferSize];
-  strcpy(time, buffer);
-  return time;
+    String time = year + '-' + month + '-' + day + 'T';
+    time += (timeInfo.tm_hour < 10) ? "0" : "";
+    time += hour + ':';
+    time += (timeInfo.tm_min < 10) ? "0" : "";
+    time += minute + ':';
+    time += (timeInfo.tm_sec < 10) ? "0" : "";
+    time += second + 'Z';
+
+    char* buffer = new char[time.length() + 1];
+    strcpy(buffer, time.c_str());
+    return buffer;
 }

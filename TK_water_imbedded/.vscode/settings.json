@@ -56,7 +56,9 @@
         "thread": "cpp",
         "cinttypes": "cpp",
         "typeinfo": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "sntp.h": "c",
+        "time.h": "c"
     },
     "cSpell.words": [
         "APIP",

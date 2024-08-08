@@ -134,9 +134,6 @@ namespace WebApplication1.Mqtt
 
             string? message = PayloadToString(payLoad);
 
-            if (message.Contains(':'))
-                message = message.Split(':')[1];
-
             try
             {
                 if (MessageHandler != null)

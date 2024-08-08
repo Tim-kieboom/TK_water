@@ -11,6 +11,6 @@ namespace WebApplication1.Controllers.controlCentrumBodys.postBackUpRecord
     {
         public string UnitID { get; set; } = string.Empty;
 
-        public BackUpRecord[] Records { get; set; } = [];
+        public BackUpRecord Record { get; set; } = new();
     }
 }

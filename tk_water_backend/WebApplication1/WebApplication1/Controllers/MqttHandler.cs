@@ -213,11 +213,9 @@ namespace WebApplication1.Controllers
                 if (unitData == null)
                     return;
 
-                foreach(var backupRecord in request.Records)
-                {
-                    DateTime time = DateTime.Parse(backupRecord.DateTime);
-                    await UpdateUnitHistory(unitData, time);
-                }
+                unitData.MoistureLevel = request.Record.MoistureLevel;
+                DateTime time = DateTime.Parse(request.Record.DateTime);
+                await UpdateUnitHistory(unitData, time);
             }
             catch (NpgsqlException)
             {

@@ -2,9 +2,9 @@
 
 #include "initServer/initServer.h"
 #include "TK_Serial/TK_Serial.h"
+#include <ArduinoQueue.h>
 #include <StringTools.h>
 #include <ArduinoJson.h>
-#include <cppQueue.h>
 #include <RGB_Led.h>
 #include "network.h"
 #include <EEPROM.h>
@@ -14,6 +14,8 @@
 #include "time.h"
 #include <Mqtt.h>
 
+#define TRY_DELETE_C_STR(str) if(!(str == nullptr || strcmp(str, "") == 0)) delete[] dateTime
+
 struct BackupStorage
 {
   uint8_t moistureLevel;
@@ -21,7 +23,7 @@ struct BackupStorage
 
   ~BackupStorage() 
   {
-    TRY_DELETE_RESPONSE(dateTime);
+    TRY_DELETE_C_STR(dateTime);
   }	
 };
 
@@ -73,8 +75,9 @@ void network_startup(/*out*/uint8_t &wateringThreshold, size_t unitID, void (*mq
 
   if(hasWifi(wifiState))
   {
-    mqttInit(mqttStartup, myCallBack);
     configTime(0, 0, "pool.ntp.org");
+    delay(2000);
+    mqttInit(mqttStartup, myCallBack);
   }
   else
   {
@@ -128,20 +131,6 @@ void setLedToState()
   }
 }
 
-const char* getTimeNow()
-{
-  tm timeInfo;
-  if(!getLocalTime(&timeInfo))
-  {
-    TK_Serial::println("Failed to obtain time");
-    return "";
-  }
-
-  char* buffer = new char[50];
-  strftime(buffer, sizeof(buffer), "%A, %B %d %Y %H:%M:%S", &timeInfo);
-  return buffer;
-}
-
 void setupInitServer()
 {
   static bool startOfFunction = true;
@@ -185,60 +174,43 @@ bool setThreshold(const char* response, /*out*/uint8_t &wateringThreshold)
   return true;
 }
 
-void backupData(cppQueue &queue, uint8_t moistureLevel)
+void backupData(ArduinoQueue<BackupStorage*> &queue, uint8_t moistureLevel)
 {
   if(queue.isFull())
   {
-    BackupStorage *dummy;
-    queue.pop(dummy);
-    delete dummy;
+    BackupStorage *dummy = queue.dequeue();
+    
+    if(dummy != nullptr)
+      delete dummy;
   }
 
   BackupStorage *backupRecord = new BackupStorage();
   backupRecord->moistureLevel = moistureLevel;
-  backupRecord->dateTime = getTimeNow();
+  backupRecord->dateTime = mqtt->getUTCTimeNow();
 
   TK_Serial::println("[backup_queue.push] moistureLevel: " + String(backupRecord->moistureLevel) + " - dateTime: " + String(backupRecord->dateTime));
-  queue.push(backupRecord);
+  queue.enqueue(backupRecord);
 }
 
-void sendBackupData(cppQueue &queue)
+void sendBackupData(ArduinoQueue<BackupStorage*> &queue)
 {
-  std::stringstream ss;
-  ss << ("{\"unitID\": \""+ String(wifiUnitID) +"\", \"records\": [").c_str();
-
-  BackupStorage *backupRecord;
-  queue.pop(backupRecord);
-  TK_Serial::println("[backup_queue.pop] moistureLevel: " + String(backupRecord->moistureLevel) + String(" - dateTime: ") + backupRecord->dateTime);
-
-  ss << ("{\"moistureLevel\":" + String(backupRecord->moistureLevel) + String(", \"dateTime\": \"") + backupRecord->dateTime + "\"}").c_str();
-
-  if(backupRecord != nullptr)
-    delete backupRecord;
-
   while(!queue.isEmpty())
   {
-    BackupStorage *backupRecord;
-    queue.pop(backupRecord);
+    BackupStorage *backupRecord = queue.dequeue();
+
     TK_Serial::println("[backup_queue.pop] moistureLevel: " + String(backupRecord->moistureLevel) + String(" - dateTime: ") + backupRecord->dateTime);
 
-    ss << ',';
-    ss << ("{\"moistureLevel\":" + String(backupRecord->moistureLevel) + String(", \"dateTime\": \"") + backupRecord->dateTime + "\"}").c_str();
+    String payload = "{\"unitID\": \""+ String(wifiUnitID) +"\", \"record\": {\"moistureLevel\":" + String(backupRecord->moistureLevel) + String(", \"dateTime\": \"") + backupRecord->dateTime + "\"}";
+    mqtt->publish("/postUnitMeasurement", payload.c_str());
 
     if(backupRecord != nullptr)
       delete backupRecord;
   }
-  ss << "]}";
-
-  const char* backUpJson = ss.str().c_str();
-  TK_Serial::println(backUpJson);
-
-  mqtt->publish("/postUnitMeasurement", ss.str().c_str());
 }
 
 void sendData(uint8_t moistureLevel, bool isBackendConnected, /*out*/uint8_t &wateringThreshold)
 {
-  static cppQueue queue = cppQueue(sizeof(BackupStorage), 720);
+  static ArduinoQueue<BackupStorage*> queue(720);
   uint8_t oldThreshold = wateringThreshold;
   String moistureLevel_str = String(moistureLevel);
   
@@ -257,6 +229,8 @@ void sendData(uint8_t moistureLevel, bool isBackendConnected, /*out*/uint8_t &wa
     backupData(queue, moistureLevel);
     return;
   }
+  
+  TK_Serial::println("[mqtt.publish] \"unit/~/postUnitMeasurement\" successful \"unitID\": \""+ String(wifiUnitID) +"\", \"moistureLevel\": "+ moistureLevel_str );
   
   if(!queue.isEmpty())
     sendBackupData(queue);
