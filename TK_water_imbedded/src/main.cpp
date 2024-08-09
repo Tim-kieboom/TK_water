@@ -16,7 +16,7 @@ static const size_t wifiUnitID = hash(WiFi.macAddress().c_str());
 
 static uint8_t wateringThreshold = 55;
 
-static Timer dataTimer = Timer(seconds);
+static BigTimer dataTimer = BigTimer(minutes);
 static MoistureSensor waterSensor = MoistureSensor(MOISTURE_SENSOR_1);
 static WaterPump waterPump = WaterPump(WATER_PUMP_1);
 

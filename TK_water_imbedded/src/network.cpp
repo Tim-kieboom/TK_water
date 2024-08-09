@@ -200,7 +200,7 @@ void sendBackupData(ArduinoQueue<BackupStorage*> &queue)
 
     TK_Serial::println("[backup_queue.pop] moistureLevel: " + String(backupRecord->moistureLevel) + String(" - dateTime: ") + backupRecord->dateTime);
 
-    String payload = "{\"unitID\": \""+ String(wifiUnitID) +"\", \"record\": {\"moistureLevel\":" + String(backupRecord->moistureLevel) + String(", \"dateTime\": \"") + backupRecord->dateTime + "\"}";
+    String payload = "{\"unitID\": \""+ String(wifiUnitID) +"\", \"record\": {\"moistureLevel\":" + String(backupRecord->moistureLevel) + String(", \"dateTime\": \"") + backupRecord->dateTime + "\"}}";
     mqtt->publish("/postUnitMeasurement", payload.c_str());
 
     if(backupRecord != nullptr)
