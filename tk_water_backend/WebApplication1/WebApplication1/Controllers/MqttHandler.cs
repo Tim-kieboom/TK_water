@@ -152,7 +152,7 @@ namespace WebApplication1.Controllers
 
         private async Task PostUnitMeasurement(string rawJson, string baseTopic)
         {
-            var request = JsonSerializer.Deserialize<PostUnitMeasurementRequestBody>(rawJson);
+            var request = JsonSerializer.Deserialize<PostUnitMeasurementRequestBody>(rawJson, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
             if (request == null)
                 return;
 
@@ -198,7 +198,7 @@ namespace WebApplication1.Controllers
 
         private async Task PostBackUpRecord(string rawJson)
         {
-            var request = JsonSerializer.Deserialize<PostBackUpRecordRequestBody>(rawJson);
+            var request = JsonSerializer.Deserialize<PostBackUpRecordRequestBody>(rawJson, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
             if (request == null)
                 return;
 
